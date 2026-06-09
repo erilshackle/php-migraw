@@ -1,0 +1,16 @@
+/tests export-ignore
+/.github export-ignore
+
+/.gitignore export-ignore
+/.gitattributes export-ignore
+/phpunit.xml export-ignore
+/phpunit.xml.dist export-ignore
+
+/.phpunit.cache export-ignore
+/composer.lock export-ignore
+
+/README.dev.md export-ignore
+/.env export-ignore
+/.env.example export-ignore
+
+/database export-ignore

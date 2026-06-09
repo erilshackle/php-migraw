@@ -1,0 +1,460 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * --------------------------------------------------------------------------
+ * SqlMigrator
+ * --------------------------------------------------------------------------
+ *
+ * Simple SQL-first migrations for PHP.
+ *
+ * This file is the command-line entry point responsible for:
+ *
+ * - Creating migration files
+ * - Running pending migrations
+ * - Rolling back migration batches
+ * - Refreshing and resetting migrations
+ * - Displaying migration status
+ *
+ * @author Eril TS Carvalho
+ * @Copyright Copyright (c) 2026 Erilando Carvalho.
+ * Released under the MIT License.
+ *
+ * @link https://github.com/erilshackle/php-sql-migrator
+ *
+ * --------------------------------------------------------------------------
+ */
+
+use Eril\SqlMigrator\MigrationCreator;
+use Eril\SqlMigrator\MigrationRepository;
+use Eril\SqlMigrator\Migrator;
+
+use PDO;
+use RuntimeException;
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+$args = $_SERVER['argv'];
+
+$command = $args[1] ?? 'migrate';
+
+$dryRun = in_array('--dry-run', $args, true)
+    || in_array('--pretend', $args, true);
+
+try {
+    if (in_array($command, ['init', '--init'], true)) {
+        initConfig();
+        exit(0);
+    }
+
+    $defaultBootstrap = basePath('bootstrap.php');
+
+    if (file_exists($defaultBootstrap)) {
+        require_once $defaultBootstrap;
+    }
+
+    $configPath = basePath('sql-migrator.php');
+
+    if (! file_exists($configPath)) {
+        echo "Config file not found: sql-migrator.php\n";
+        echo "Run: php vendor/bin/sql-migrator init\n";
+        exit(1);
+    }
+
+    $config = require $configPath;
+
+    if (isset($config['bootstrap'])) {
+        $bootstrap = resolvePath($config['bootstrap']);
+
+        if (file_exists($bootstrap)) {
+            require_once $bootstrap;
+        }
+    }
+
+    $pdo = resolvePdo($config);
+
+    $path = resolvePath($config['path'] ?? 'database/migrations');
+    $table = $config['table'] ?? 'migrations';
+
+    $repository = new MigrationRepository($pdo, $table);
+    $migrator = new Migrator($pdo, $path, $repository);
+
+    if ($dryRun) {
+        $migrator->pretend();
+    }
+
+    match ($command) {
+        'migrate' => migrate($migrator, $dryRun),
+        'rollback' => rollback($migrator, $dryRun),
+        'status' => status($migrator),
+        'reset' => resetMigrations($migrator, $dryRun),
+        'refresh' => refresh($migrator, $dryRun),
+        'fresh' => fresh($migrator, $dryRun),
+        'make' => make($path, $args[2] ?? null),
+        'help', '--help', '-h' => help(),
+        default => unknownCommand($command),
+    };
+} catch (Throwable $e) {
+    echo "Error: {$e->getMessage()}\n";
+    exit(1);
+}
+
+function migrate(Migrator $migrator, bool $dryRun = false): void
+{
+    $executed = $migrator->migrate();
+
+    if ($executed === []) {
+        echo "Nothing to migrate.\n";
+        return;
+    }
+
+    if ($dryRun) {
+        printPretendedSql($migrator);
+        return;
+    }
+
+    foreach ($executed as $migration) {
+        echo "Migrated: {$migration}\n";
+    }
+}
+
+function rollback(Migrator $migrator, bool $dryRun = false): void
+{
+    $rolledBack = $migrator->rollback();
+
+    if ($rolledBack === []) {
+        echo "Nothing to rollback.\n";
+        return;
+    }
+
+    if ($dryRun) {
+        printPretendedSql($migrator);
+        return;
+    }
+
+    foreach ($rolledBack as $migration) {
+        echo "Rolled back: {$migration}\n";
+    }
+}
+
+function resetMigrations(Migrator $migrator, bool $dryRun = false): void
+{
+    $rolledBack = $migrator->reset();
+
+    if ($rolledBack === []) {
+        echo "Nothing to reset.\n";
+        return;
+    }
+
+    if ($dryRun) {
+        printPretendedSql($migrator);
+        return;
+    }
+
+    foreach ($rolledBack as $migration) {
+        echo "Rolled back: {$migration}\n";
+    }
+}
+
+function refresh(Migrator $migrator, bool $dryRun = false): void
+{
+    $result = $migrator->refresh();
+
+    if ($result['rolled_back'] === [] && $result['migrated'] === []) {
+        echo "Nothing to refresh.\n";
+        return;
+    }
+
+    if ($dryRun) {
+        printPretendedSql($migrator);
+        return;
+    }
+
+    foreach ($result['rolled_back'] as $migration) {
+        echo "Rolled back: {$migration}\n";
+    }
+
+    foreach ($result['migrated'] as $migration) {
+        echo "Migrated: {$migration}\n";
+    }
+}
+
+function fresh(Migrator $migrator, bool $dryRun = false): void
+{
+    $result = $migrator->fresh();
+
+    if ($result['rolled_back'] === [] && $result['migrated'] === []) {
+        echo "Nothing to fresh.\n";
+        return;
+    }
+
+    if ($dryRun) {
+        printPretendedSql($migrator);
+        return;
+    }
+
+    foreach ($result['rolled_back'] as $migration) {
+        echo "Rolled back: {$migration}\n";
+    }
+
+    foreach ($result['migrated'] as $migration) {
+        echo "Migrated: {$migration}\n";
+    }
+}
+
+function status(Migrator $migrator): void
+{
+    $rows = $migrator->status();
+
+    if ($rows === []) {
+        echo "No migrations found.\n";
+        return;
+    }
+
+    foreach ($rows as $row) {
+        echo "[{$row['status']}] {$row['migration']}\n";
+    }
+}
+
+function make(string $path, ?string $name): void
+{
+    if (! $name) {
+        echo "Migration name is required.\n";
+        echo "Usage: php vendor/bin/sql-migrator make create_users_table\n";
+        exit(1);
+    }
+
+    $creator = new MigrationCreator($path);
+    $file = $creator->create($name);
+
+    echo "Created migration: {$file}\n";
+}
+
+function resolvePdo(array $config): PDO
+{
+    $pdo = $config['pdo'] ?? $config['connection'] ?? null;
+
+    if (is_callable($pdo)) {
+        $pdo = $pdo();
+    }
+
+    if ($pdo instanceof PDO) {
+        return $pdo;
+    }
+
+    if (! is_array($pdo)) {
+        throw new RuntimeException('Database connection must be a PDO instance, callable, or connection array.');
+    }
+
+    return createPdoFromConnection($pdo, $config['options'] ?? []);
+}
+
+function createPdoFromConnection(array $connection, array $options = []): PDO
+{
+    $driver = $connection['driver'] ?? 'mysql';
+
+    $options = $options + [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ];
+
+    $dsn = match ($driver) {
+        'sqlite' => 'sqlite:' . resolvePath(
+            $connection['sqlite_path'] ?? 'database/database.sqlite'
+        ),
+
+        'pgsql' => sprintf(
+            'pgsql:host=%s;port=%s;dbname=%s',
+            $connection['host'] ?? '127.0.0.1',
+            $connection['port'] ?? '5432',
+            $connection['database'] ?? ''
+        ),
+
+        'mysql' => sprintf(
+            'mysql:host=%s;port=%s;dbname=%s;charset=%s',
+            $connection['host'] ?? '127.0.0.1',
+            $connection['port'] ?? '3306',
+            $connection['database'] ?? '',
+            $connection['charset'] ?? 'utf8mb4'
+        ),
+
+        default => throw new RuntimeException("Unsupported database driver: {$driver}"),
+    };
+
+    $username = $driver === 'sqlite'
+        ? null
+        : ($connection['username'] ?? null);
+
+    $password = $driver === 'sqlite'
+        ? null
+        : ($connection['password'] ?? null);
+
+    return new PDO($dsn, $username, $password, $options);
+}
+
+function printPretendedSql(Migrator $migrator): void
+{
+    $sql = $migrator->getPretendedSql();
+
+    if ($sql === []) {
+        echo "No SQL to display.\n";
+        return;
+    }
+
+    echo "Dry run:\n\n";
+
+    foreach ($sql as $statement) {
+        echo trim($statement) . "\n\n";
+    }
+}
+
+function initConfig(): void
+{
+    $configPath = basePath('sql-migrator.php');
+
+    if (file_exists($configPath)) {
+        echo "Config file already exists: sql-migrator.php\n";
+        return;
+    }
+
+    file_put_contents($configPath, defaultConfigStub());
+
+    if (! is_dir(basePath('database/migrations'))) {
+        mkdir(basePath('database/migrations'), 0775, true);
+    }
+
+    echo "Created config: sql-migrator.php\n";
+    echo "Created directory: database/migrations\n";
+}
+
+function defaultConfigStub(): string
+{
+    return <<<'PHP'
+<?php
+
+return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Bootstrap File
+    |--------------------------------------------------------------------------
+    |
+    | Optional file loaded before the migrator starts.
+    | Useful for loading environment variables, constants,
+    | framework bootstrap files, or application services.
+    |
+    */
+
+    // 'bootstrap' => 'bootstrap.php',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Migrations Path
+    |--------------------------------------------------------------------------
+    |
+    | Directory where your migration files are stored.
+    |
+    */
+
+    'path' => 'database/migrations',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Database Connection
+    |--------------------------------------------------------------------------
+    |
+    | You may configure the connection using an array, a PDO instance,
+    | or a callable that returns a PDO instance.
+    |
+    */
+
+    'connection' => [
+        'driver' => $_ENV['DB_CONNECTION'] ?? 'mysql',
+
+        'host' => $_ENV['DB_HOST'] ?? '127.0.0.1',
+        'port' => $_ENV['DB_PORT'] ?? '3306',
+        'database' => $_ENV['DB_DATABASE'] ?? '',
+        'username' => $_ENV['DB_USERNAME'] ?? 'root',
+        'password' => $_ENV['DB_PASSWORD'] ?? '',
+
+        'charset' => $_ENV['DB_CHARSET'] ?? 'utf8mb4',
+
+        'sqlite_path' => $_ENV['DB_SQLITE_PATH'] ?? 'database/database.sqlite',
+    ],
+
+];
+
+PHP;
+}
+
+function resolvePath(string $path): string
+{
+    if (isAbsolutePath($path)) {
+        return $path;
+    }
+
+    return basePath($path);
+}
+
+function basePath(string $path = ''): string
+{
+    $base = getcwd();
+
+    if ($path === '') {
+        return $base;
+    }
+
+    return $base . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, ltrim($path, '/\\'));
+}
+
+function isAbsolutePath(string $path): bool
+{
+    return str_starts_with($path, '/')
+        || preg_match('/^[A-Za-z]:[\/\\\\]/', $path) === 1;
+}
+
+function unknownCommand(string $command): void
+{
+    echo "Unknown command: {$command}\n\n";
+
+    help();
+
+    exit(1);
+}
+
+function help(): void
+{
+    echo <<<TXT
+SqlMigrator
+
+Usage:
+  php vendor/bin/sql-migrator init
+  php vendor/bin/sql-migrator migrate
+  php vendor/bin/sql-migrator migrate --dry-run
+  php vendor/bin/sql-migrator rollback
+  php vendor/bin/sql-migrator rollback --dry-run
+  php vendor/bin/sql-migrator status
+  php vendor/bin/sql-migrator reset
+  php vendor/bin/sql-migrator reset --dry-run
+  php vendor/bin/sql-migrator refresh
+  php vendor/bin/sql-migrator refresh --dry-run
+  php vendor/bin/sql-migrator fresh
+  php vendor/bin/sql-migrator fresh --dry-run
+  php vendor/bin/sql-migrator make migration_name
+
+Commands:
+  init       Create the default sql-migrator.php config file
+  migrate    Run pending migrations
+  rollback   Rollback the last migration batch
+  status     Show migration status
+  reset      Rollback all executed migrations
+  refresh    Reset and run all migrations again
+  fresh      Safe refresh: reset then migrate
+  make       Create a new migration file
+
+Options:
+  --dry-run, --pretend   Show SQL without executing it
+
+TXT;
+}
