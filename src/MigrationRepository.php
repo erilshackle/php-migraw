@@ -123,6 +123,7 @@ class MigrationRepository
         $stmt->execute([
             'migration' => $migration,
             'batch' => $batch,
+            'checksum' => $checksum
         ]);
     }
 

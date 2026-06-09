@@ -2,8 +2,25 @@
 
 Simple SQL-first migrations for PHP.
 
-SqlMigrator is a small migration library focused on explicit SQL.  
-You can write raw SQL directly or use the optional fluent SQL helper to assemble basic SQL statements.
+SqlMigrator is a lightweight migration tool focused on explicit SQL.
+
+Write raw SQL when you want complete control, or use the optional SQL builder for common operations. No schema diffing, no introspection, no complex DSLs.
+
+## Features
+
+* SQL-first approach
+* Raw SQL migrations
+* Optional fluent SQL builder
+* MySQL, PostgreSQL and SQLite support
+* Migration batches
+* Rollback support
+* Dry-run mode
+* Migration integrity checks using checksums
+* CLI tooling
+* No ORM dependency
+* No framework dependency
+
+---
 
 ## Installation
 
@@ -11,42 +28,98 @@ You can write raw SQL directly or use the optional fluent SQL helper to assemble
 composer require eril/sql-migrator
 ```
 
-## Configuration
+---
 
-Create a `sql-migrator.php` file in your project root:
+## Getting Started
+
+Initialize the configuration file:
+
+```bash
+php vendor/bin/sql-migrator init
+```
+
+This will create:
+
+```txt
+sql-migrator.php
+database/
+└── migrations/
+```
+
+---
+
+## Configuration
 
 ```php
 <?php
 
-use PDO;
-
 return [
-    'path' => __DIR__ . '/database/migrations',
-    'table' => 'migrations',
 
-    'pdo' => function (): PDO {
-        return new PDO(
-            'mysql:host=localhost;dbname=app;charset=utf8mb4',
-            'root',
-            '',
-            [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            ]
-        );
-    },
+    /*
+    |--------------------------------------------------------------------------
+    | Migrations Path
+    |--------------------------------------------------------------------------
+    */
+
+    'path' => 'database/migrations',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Database Connection
+    |--------------------------------------------------------------------------
+    */
+
+    'connection' => [
+        'driver' => $_ENV['DB_CONNECTION'] ?? 'mysql',
+
+        'host' => $_ENV['DB_HOST'] ?? '127.0.0.1',
+        'port' => $_ENV['DB_PORT'] ?? '3306',
+        'database' => $_ENV['DB_DATABASE'] ?? '',
+        'username' => $_ENV['DB_USERNAME'] ?? 'root',
+        'password' => $_ENV['DB_PASSWORD'] ?? '',
+
+        'charset' => $_ENV['DB_CHARSET'] ?? 'utf8mb4',
+
+        'sqlite_path' => $_ENV['DB_SQLITE_PATH'] ?? 'database/database.sqlite',
+    ],
+
 ];
 ```
 
-## Creating a migration
+You may also provide a PDO instance or callable:
 
-```bash
-php vendor/bin/sql-migrator make create_users_table
+```php
+return [
+
+    'path' => 'database/migrations',
+
+    'connection' => function (): PDO {
+        return App\Database::connection();
+    },
+
+];
 ```
 
-This creates a file inside `database/migrations`.
+---
 
-## Raw SQL migration
+## Creating Migrations
+
+Create a migration:
+
+```bash
+vendor/bin/sql-migrator make create_users_table
+```
+
+Generated file:
+
+```txt
+database/migrations/
+└── 2026_06_09_120000_create_users_table.php
+```
+
+---
+
+## Raw SQL Migrations
 
 ```php
 <?php
@@ -55,21 +128,18 @@ use Eril\SqlMigrator\Migration;
 
 return new class extends Migration
 {
-    public function up(): string|array
+    public function up(): string
     {
         return <<<SQL
         CREATE TABLE users (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(120) NOT NULL,
-            email VARCHAR(160) NOT NULL UNIQUE,
-            password VARCHAR(255) NOT NULL,
-            created_at TIMESTAMP NULL,
-            updated_at TIMESTAMP NULL
+            email VARCHAR(160) NOT NULL UNIQUE
         );
         SQL;
     }
 
-    public function down(): string|array
+    public function down(): string
     {
         return <<<SQL
         DROP TABLE users;
@@ -78,7 +148,9 @@ return new class extends Migration
 };
 ```
 
-## Assisted SQL migration
+---
+
+## Fluent SQL Builder
 
 ```php
 <?php
@@ -89,147 +161,210 @@ use Eril\SqlMigrator\Sql\SqlStatement;
 
 return new class extends Migration
 {
-    public function up(): string|array|SqlStatement
+    public function up(): SqlStatement
     {
-        return Sql::create('users', ifNotExists: false)
-            ->ifNotExists()
+        return Sql::create('users')
             ->field('id INT AUTO_INCREMENT PRIMARY KEY')
             ->field('name VARCHAR(120) NOT NULL')
-            ->field('email VARCHAR(160) NOT NULL UNIQUE')
-            ->field('password VARCHAR(255) NOT NULL')
-            ->field('created_at TIMESTAMP NULL')
-            ->field('updated_at TIMESTAMP NULL');
+            ->field('email VARCHAR(160) NOT NULL UNIQUE');
     }
 
-    public function down(): string|array|SqlStatement
+    public function down(): SqlStatement
     {
-        return Sql::drop('users', ifxists: false)->ifExists();
+        return Sql::drop('users');
     }
 };
 ```
 
-## Multiple SQL statements
+---
+
+## Multiple Statements
 
 ```php
-public function up(): string|array|SqlStatement
+public function up(): array
 {
     return [
+
         Sql::create('roles')
             ->field('id INT AUTO_INCREMENT PRIMARY KEY')
             ->field('name VARCHAR(80) NOT NULL UNIQUE'),
 
         Sql::create('users')
             ->field('id INT AUTO_INCREMENT PRIMARY KEY')
-            ->field('role_id INT NULL')
-            ->field('name VARCHAR(120) NOT NULL')
-            ->constraint('FOREIGN KEY (role_id) REFERENCES roles(id)'),
+            ->field('role_id INT')
+            ->constraint(
+                'FOREIGN KEY (role_id) REFERENCES roles(id)'
+            ),
+
     ];
 }
 ```
 
+---
 
-> After a migration has been executed, do not edit it. Create a new migration instead.
+## Running Migrations
 
-
-## Commands
-
-Run pending migrations:
+Run all pending migrations:
 
 ```bash
-php vendor/bin/sql-migrator migrate
+vendor/bin/sql-migrator migrate
 ```
 
 Rollback the last batch:
 
 ```bash
-php vendor/bin/sql-migrator rollback
+vendor/bin/sql-migrator rollback
 ```
 
-Show migration status:
+Rollback all executed migrations:
 
 ```bash
-php vendor/bin/sql-migrator status
+vendor/bin/sql-migrator reset
 ```
 
-Rollback all migrations:
+Reset and re-run all migrations:
 
 ```bash
-php vendor/bin/sql-migrator reset
+vendor/bin/sql-migrator refresh
 ```
 
-Rollback all migrations and run them again:
+Safe refresh alias:
 
 ```bash
-php vendor/bin/sql-migrator refresh
+vendor/bin/sql-migrator fresh
 ```
 
-Create a migration:
+Check migration status:
 
 ```bash
-php vendor/bin/sql-migrator make create_users_table
+vendor/bin/sql-migrator status
 ```
 
-## SQL helper
+---
 
-### Create table
+## Dry Run
 
-```php
-Sql::create('users')
-    ->field('id INT AUTO_INCREMENT PRIMARY KEY')
-    ->field('name VARCHAR(255) NOT NULL')
-    ->constraint('UNIQUE(name)');
+Preview SQL without executing it:
+
+```bash
+evendor/bin/sql-migrator migrate --dry-run
 ```
 
-### Alter table
+or
 
-```php
-Sql::alter('users')
-    ->add('phone VARCHAR(50) NULL')
-    ->modify('name VARCHAR(180) NOT NULL')
-    ->rename('name', 'full_name')
-    ->drop('old_column');
+```bash
+evendor/bin/sql-migrator migrate --pretend
 ```
 
-### Rename table
+Example:
 
-```php
-Sql::rename('users')
-    ->to('members');
+```sql
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(120) NOT NULL
+);
 ```
 
-### Drop table
+---
 
-```php
-Sql::drop('users')
-    ->ifExists();
+## Migration Integrity
+
+When a migration is executed, SqlMigrator stores a checksum of the migration file.
+
+If the file is modified afterwards, rollback operations are blocked:
+
+```txt
+Migration '2026_06_09_120000_create_users_table'
+was modified after execution.
 ```
+
+Status output:
+
+```txt
+[ran]       2026_06_09_120000_create_users_table
+[modified]  2026_06_09_130000_add_email_to_users
+[pending]   2026_06_09_140000_create_posts_table
+```
+
+To ignore checksum validation:
+
+```bash
+vendor/bin/sql-migrator rollback --force
+```
+
+---
+
+## Best Practices
+
+Once a migration has been executed:
+
+**Do not modify it.**
+
+Instead, create a new migration.
+
+Good:
+
+```txt
+2026_06_09_create_users_table
+2026_06_10_add_phone_to_users
+```
+
+Avoid:
+
+```txt
+Editing old migration files after deployment
+```
+
+---
 
 ## Philosophy
 
-SqlMigrator does not try to infer your schema.
+SqlMigrator follows a simple principle:
 
-It does not diff databases, inspect tables, guess column types, or hide SQL behind a complex DSL.
+> SQL is already a schema language.
 
-You can write SQL directly, or use the helper when you only want a small amount of structure.
+Instead of hiding SQL behind a large abstraction layer, SqlMigrator embraces it.
 
-## Transactions
+You can write raw SQL directly or use a lightweight builder when convenient.
 
-SqlMigrator uses schema transactions automatically for drivers where they are generally reliable, such as SQLite and PostgreSQL.
+No schema diffing.
 
-For MySQL and MariaDB, schema transactions are not enabled by default because many DDL statements cause implicit commits.
+No database introspection.
 
-## Testing
+No ORM dependency.
 
-```bash
-composer install
-composer test
-```
+No framework dependency.
+
+Just migrations.
+
+---
 
 ## Requirements
 
 * PHP 8.1+
 * PDO
 
+Supported databases:
+
+* MySQL
+* MariaDB
+* PostgreSQL
+* SQLite
+
+---
+
+## Testing
+
+Run the test suite:
+
+```bash
+composer test
+```
+
+---
+
 ## License
 
-MIT
+MIT License
+
+Copyright (c) 2026 Eril TS Carvalho

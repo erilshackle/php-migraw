@@ -25,6 +25,7 @@
  * --------------------------------------------------------------------------
  */
 
+use Eril\SqlMigrator\Console;
 use Eril\SqlMigrator\MigrationCreator;
 use Eril\SqlMigrator\MigrationRepository;
 use Eril\SqlMigrator\Migrator;
@@ -97,7 +98,9 @@ try {
         default => unknownCommand($command),
     };
 } catch (Throwable $e) {
-    echo "Error: {$e->getMessage()}\n";
+    echo Console::red(
+        "Error: {$e->getMessage()}\n"
+    );
     exit(1);
 }
 
@@ -116,7 +119,9 @@ function migrate(Migrator $migrator, bool $dryRun = false): void
     }
 
     foreach ($executed as $migration) {
-        echo "Migrated: {$migration}\n";
+        echo Console::green(
+            "Migrated: {$migration}\n"
+        );
     }
 }
 
@@ -135,7 +140,9 @@ function rollback(Migrator $migrator, bool $dryRun = false): void
     }
 
     foreach ($rolledBack as $migration) {
-        echo "Rolled back: {$migration}\n";
+        echo Console::yellow(
+            "Rolled back: {$migration}\n"
+        );
     }
 }
 
@@ -214,7 +221,14 @@ function status(Migrator $migrator): void
     }
 
     foreach ($rows as $row) {
-        echo "[{$row['status']}] {$row['migration']}\n";
+        $status = match ($row['status']) {
+            'ran' => Console::green('[ran]'),
+            'pending' => Console::yellow('[pending]'),
+            'modified' => Console::red('[modified]'),
+            default => "[{$row['status']}]",
+        };
+
+        echo "{$status} {$row['migration']}\n";
     }
 }
 
@@ -304,7 +318,9 @@ function printPretendedSql(Migrator $migrator): void
         return;
     }
 
-    echo "Dry run:\n\n";
+    echo Console::cyan(
+        "Dry run:\n\n"
+    );
 
     foreach ($sql as $statement) {
         echo trim($statement) . "\n\n";
