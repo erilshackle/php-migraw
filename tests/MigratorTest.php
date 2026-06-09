@@ -1,10 +1,10 @@
 <?php
 
-namespace Eril\SqlMigrator\Tests;
+namespace Eril\Migraw\Tests;
 
-use Eril\SqlMigrator\Migration;
-use Eril\SqlMigrator\MigrationRepository;
-use Eril\SqlMigrator\Migrator;
+use Eril\Migraw\Migration;
+use Eril\Migraw\MigrationRepository;
+use Eril\Migraw\Migrator;
 use PDO;
 use PHPUnit\Framework\TestCase;
 
@@ -40,7 +40,7 @@ class MigratorTest extends TestCase
         $this->createMigration('2026_06_08_000000_create_users_table.php', <<<PHP
         <?php
 
-        use Eril\SqlMigrator\Migration;
+        use Eril\Migraw\Migration;
 
         return new class extends Migration {
             public function up(): string|array
@@ -74,7 +74,7 @@ class MigratorTest extends TestCase
         $this->createMigration('2026_06_08_000000_create_users_table.php', <<<PHP
         <?php
 
-        use Eril\SqlMigrator\Migration;
+        use Eril\Migraw\Migration;
 
         return new class extends Migration {
             public function up(): string|array
@@ -110,7 +110,7 @@ class MigratorTest extends TestCase
         $this->createMigration('2026_06_08_000000_create_users_table.php', <<<PHP
         <?php
 
-        use Eril\SqlMigrator\Migration;
+        use Eril\Migraw\Migration;
 
         return new class extends Migration {
             public function up(): string|array
@@ -163,9 +163,9 @@ class MigratorTest extends TestCase
         $this->createMigration('2026_06_08_000000_create_users_table.php', <<<'PHP'
     <?php
 
-    use Eril\SqlMigrator\Migration;
-    use Eril\SqlMigrator\Sql\Sql;
-    use Eril\SqlMigrator\Sql\SqlStatement;
+    use Eril\Migraw\Migration;
+    use Eril\Migraw\Sql\Sql;
+    use Eril\Migraw\Sql\SqlStatement;
 
     return new class extends Migration {
         public function up(): string|array|SqlStatement

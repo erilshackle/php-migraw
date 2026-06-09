@@ -1,5 +1,5 @@
 {
-  "name": "eril/sql-migrator",
+  "name": "eril/migraw",
   "description": "Simple SQL-first migrations for PHP.",
   "keywords": [
     "sql",
@@ -38,12 +38,12 @@
   },
   "autoload": {
     "psr-4": {
-      "Eril\\SqlMigrator\\": "src/"
+      "Eril\\Migraw\\": "src/"
     }
   },
   "autoload-dev": {
     "psr-4": {
-      "Eril\\SqlMigrator\\Tests\\": "tests/"
+      "Eril\\Migraw\\Tests\\": "tests/"
     }
   },
   "bin": [
@@ -51,7 +51,7 @@
   ],
   "scripts": {
     "test": "phpunit",
-    "migraw": "bin/sql-migrator"
+    "migraw": "bin/migraw"
   },
   "config": {
     "sort-packages": true,

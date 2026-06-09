@@ -1,8 +1,8 @@
 <?php
 
-namespace Eril\SqlMigrator\Tests\Sql;
+namespace Eril\Migraw\Tests\Sql;
 
-use Eril\SqlMigrator\Sql\Sql;
+use Eril\Migraw\Sql\Sql;
 use PHPUnit\Framework\TestCase;
 
 class DropTableTest extends TestCase

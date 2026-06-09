@@ -1,8 +1,9 @@
-# SqlMigrator
+# Migraw
 
-Simple SQL-first migrations for PHP.
+SQL-first migrations for PHP. 
+Write SQL. Not magic.
 
-SqlMigrator is a lightweight migration tool focused on explicit SQL.
+Migraw is a lightweight migration tool focused on explicit SQL.
 
 Write raw SQL when you want complete control, or use the optional SQL builder for common operations. No schema diffing, no introspection, no complex DSLs.
 
@@ -35,13 +36,13 @@ composer require eril/sql-migrator
 Initialize the configuration file:
 
 ```bash
-php vendor/bin/sql-migrator init
+php vendor/bin/migraw init
 ```
 
 This will create:
 
 ```txt
-sql-migrator.php
+migraw.php
 database/
 └── migrations/
 ```
@@ -107,7 +108,7 @@ return [
 Create a migration:
 
 ```bash
-vendor/bin/sql-migrator make create_users_table
+vendor/bin/migraw make create_users_table
 ```
 
 Generated file:
@@ -124,7 +125,7 @@ database/migrations/
 ```php
 <?php
 
-use Eril\SqlMigrator\Migration;
+use Eril\Migraw\Migration;
 
 return new class extends Migration
 {
@@ -155,9 +156,9 @@ return new class extends Migration
 ```php
 <?php
 
-use Eril\SqlMigrator\Migration;
-use Eril\SqlMigrator\Sql\Sql;
-use Eril\SqlMigrator\Sql\SqlStatement;
+use Eril\Migraw\Migration;
+use Eril\Migraw\Sql\Sql;
+use Eril\Migraw\Sql\SqlStatement;
 
 return new class extends Migration
 {
@@ -207,37 +208,37 @@ public function up(): array
 Run all pending migrations:
 
 ```bash
-vendor/bin/sql-migrator migrate
+vendor/bin/migraw migrate
 ```
 
 Rollback the last batch:
 
 ```bash
-vendor/bin/sql-migrator rollback
+vendor/bin/migraw rollback
 ```
 
 Rollback all executed migrations:
 
 ```bash
-vendor/bin/sql-migrator reset
+vendor/bin/migraw reset
 ```
 
 Reset and re-run all migrations:
 
 ```bash
-vendor/bin/sql-migrator refresh
+vendor/bin/migraw refresh
 ```
 
 Safe refresh alias:
 
 ```bash
-vendor/bin/sql-migrator fresh
+vendor/bin/migraw fresh
 ```
 
 Check migration status:
 
 ```bash
-vendor/bin/sql-migrator status
+vendor/bin/migraw status
 ```
 
 ---
@@ -247,13 +248,13 @@ vendor/bin/sql-migrator status
 Preview SQL without executing it:
 
 ```bash
-evendor/bin/sql-migrator migrate --dry-run
+vendor/bin/migraw migrate --dry-run
 ```
 
 or
 
 ```bash
-evendor/bin/sql-migrator migrate --pretend
+vendor/bin/migraw migrate --pretend
 ```
 
 Example:
@@ -269,7 +270,7 @@ CREATE TABLE users (
 
 ## Migration Integrity
 
-When a migration is executed, SqlMigrator stores a checksum of the migration file.
+When a migration is executed, Migraw stores a checksum of the migration file.
 
 If the file is modified afterwards, rollback operations are blocked:
 
@@ -289,7 +290,7 @@ Status output:
 To ignore checksum validation:
 
 ```bash
-vendor/bin/sql-migrator rollback --force
+vendor/bin/migraw rollback --force
 ```
 
 ---
@@ -319,11 +320,11 @@ Editing old migration files after deployment
 
 ## Philosophy
 
-SqlMigrator follows a simple principle:
+Migraw follows a simple principle:
 
 > SQL is already a schema language.
 
-Instead of hiding SQL behind a large abstraction layer, SqlMigrator embraces it.
+Instead of hiding SQL behind a large abstraction layer, Migraw embraces it.
 
 You can write raw SQL directly or use a lightweight builder when convenient.
 

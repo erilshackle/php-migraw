@@ -1,6 +1,6 @@
 <?php
 
-namespace Eril\SqlMigrator\Sql;
+namespace Eril\Migraw\Sql;
 
 class DropTable implements SqlStatement
 {

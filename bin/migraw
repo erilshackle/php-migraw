@@ -3,7 +3,7 @@
 
 /**
  * --------------------------------------------------------------------------
- * SqlMigrator
+ * Migraw
  * --------------------------------------------------------------------------
  *
  * Simple SQL-first migrations for PHP.
@@ -20,15 +20,15 @@
  * @Copyright Copyright (c) 2026 Erilando Carvalho.
  * Released under the MIT License.
  *
- * @link https://github.com/erilshackle/php-sql-migrator
+ * @link https://github.com/erilshackle/php-migraw
  *
  * --------------------------------------------------------------------------
  */
 
-use Eril\SqlMigrator\Console;
-use Eril\SqlMigrator\MigrationCreator;
-use Eril\SqlMigrator\MigrationRepository;
-use Eril\SqlMigrator\Migrator;
+use Eril\Migraw\Console;
+use Eril\Migraw\MigrationCreator;
+use Eril\Migraw\MigrationRepository;
+use Eril\Migraw\Migrator;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
@@ -52,11 +52,11 @@ try {
         require_once $defaultBootstrap;
     }
 
-    $configPath = basePath('sql-migrator.php');
+    $configPath = basePath('migraw.php');
 
     if (! file_exists($configPath)) {
-        echo "Config file not found: sql-migrator.php\n";
-        echo "Run: php vendor/bin/sql-migrator init\n";
+        echo "Config file not found: migraw.php\n";
+        echo "Run: php vendor/bin/migraw init\n";
         exit(1);
     }
 
@@ -236,7 +236,7 @@ function make(string $path, ?string $name): void
 {
     if (! $name) {
         echo "Migration name is required.\n";
-        echo "Usage: php vendor/bin/sql-migrator make create_users_table\n";
+        echo "Usage: php vendor/bin/migraw make create_users_table\n";
         exit(1);
     }
 
@@ -329,10 +329,10 @@ function printPretendedSql(Migrator $migrator): void
 
 function initConfig(): void
 {
-    $configPath = basePath('sql-migrator.php');
+    $configPath = basePath('migraw.php');
 
     if (file_exists($configPath)) {
-        echo "Config file already exists: sql-migrator.php\n";
+        echo "Config file already exists: migraw.php\n";
         return;
     }
 
@@ -342,7 +342,7 @@ function initConfig(): void
         mkdir(basePath('database/migrations'), 0775, true);
     }
 
-    echo "Created config: sql-migrator.php\n";
+    echo "Created config: migraw.php\n";
     echo "Created directory: database/migrations\n";
 }
 
@@ -444,25 +444,25 @@ function unknownCommand(string $command): void
 function help(): void
 {
     echo <<<TXT
-SqlMigrator
+Migraw
 
 Usage:
-  php vendor/bin/sql-migrator init
-  php vendor/bin/sql-migrator migrate
-  php vendor/bin/sql-migrator migrate --dry-run
-  php vendor/bin/sql-migrator rollback
-  php vendor/bin/sql-migrator rollback --dry-run
-  php vendor/bin/sql-migrator status
-  php vendor/bin/sql-migrator reset
-  php vendor/bin/sql-migrator reset --dry-run
-  php vendor/bin/sql-migrator refresh
-  php vendor/bin/sql-migrator refresh --dry-run
-  php vendor/bin/sql-migrator fresh
-  php vendor/bin/sql-migrator fresh --dry-run
-  php vendor/bin/sql-migrator make migration_name
+  php vendor/bin/migraw init
+  php vendor/bin/migraw migrate
+  php vendor/bin/migraw migrate --dry-run
+  php vendor/bin/migraw rollback
+  php vendor/bin/migraw rollback --dry-run
+  php vendor/bin/migraw status
+  php vendor/bin/migraw reset
+  php vendor/bin/migraw reset --dry-run
+  php vendor/bin/migraw refresh
+  php vendor/bin/migraw refresh --dry-run
+  php vendor/bin/migraw fresh
+  php vendor/bin/migraw fresh --dry-run
+  php vendor/bin/migraw make migration_name
 
 Commands:
-  init       Create the default sql-migrator.php config file
+  init       Create the default migraw.php config file
   migrate    Run pending migrations
   rollback   Rollback the last migration batch
   status     Show migration status

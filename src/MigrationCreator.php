@@ -1,6 +1,6 @@
 <?php
 
-namespace Eril\SqlMigrator;
+namespace Eril\Migraw;
 
 use RuntimeException;
 
@@ -49,9 +49,9 @@ class MigrationCreator
         return <<<'PHP'
 <?php
 
-use Eril\SqlMigrator\Migration;
-use Eril\SqlMigrator\Sql\SqlStatement;
-use Eril\SqlMigrator\Sql\Sql;
+use Eril\Migraw\Migration;
+use Eril\Migraw\Sql\SqlStatement;
+use Eril\Migraw\Sql\Sql;
 
 return new class extends Migration
 {

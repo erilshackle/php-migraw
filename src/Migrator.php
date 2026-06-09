@@ -1,8 +1,8 @@
 <?php
 
-namespace Eril\SqlMigrator;
+namespace Eril\Migraw;
 
-use Eril\SqlMigrator\Sql\SqlStatement;
+use Eril\Migraw\Sql\SqlStatement;
 use PDO;
 use RuntimeException;
 use Throwable;

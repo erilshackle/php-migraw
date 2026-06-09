@@ -1,6 +1,6 @@
 <?php
 
-namespace Eril\SqlMigrator;
+namespace Eril\Migraw;
 
 final class Console
 {
