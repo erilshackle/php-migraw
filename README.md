@@ -127,6 +127,10 @@ public function up(): string|array|SqlStatement
 }
 ```
 
+
+> After a migration has been executed, do not edit it. Create a new migration instead.
+
+
 ## Commands
 
 Run pending migrations:

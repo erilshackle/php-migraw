@@ -11,6 +11,7 @@ class Migrator
 {
 
     protected bool $pretending = false;
+    protected bool $force = false;
 
     protected array $pretendedSql = [];
 
@@ -20,6 +21,19 @@ class Migrator
         protected ?MigrationRepository $repository = null
     ) {
         $this->repository ??= new MigrationRepository($pdo);
+    }
+
+    protected function checksum(
+        string $file
+    ): string {
+        return hash_file('sha256', $file);
+    }
+
+    public function force(): static
+    {
+        $this->force = true;
+
+        return $this;
     }
 
     public function migrate(): array
@@ -41,7 +55,11 @@ class Migrator
             $this->runSql($migration->up());
 
             if (! $this->pretending) {
-                $this->repository->log($migrationName, $batch);
+                $this->repository->log(
+                    $migrationName,
+                    $batch,
+                    $this->checksum($files[$migrationName])
+                );
             }
 
             $executed[] = $migrationName;
@@ -65,6 +83,11 @@ class Migrator
             if (! isset($files[$migrationName])) {
                 throw new RuntimeException("Migration file not found: {$migrationName}");
             }
+
+            $this->ensureMigrationIntegrity(
+                $migrationName,
+                $files[$migrationName]
+            );
 
             $migration = $this->loadMigration($files[$migrationName]);
 
@@ -97,6 +120,8 @@ class Migrator
         return $status;
     }
 
+
+
     public function pretend(): static
     {
         $this->pretending = true;
@@ -121,6 +146,11 @@ class Migrator
             if (! isset($files[$migrationName])) {
                 throw new RuntimeException("Migration file not found: {$migrationName}");
             }
+
+            $this->ensureMigrationIntegrity(
+                $migrationName,
+                $files[$migrationName]
+            );
 
             $migration = $this->loadMigration($files[$migrationName]);
 
@@ -235,6 +265,22 @@ class Migrator
         }
 
         return $mapped;
+    }
+
+    protected function ensureMigrationIntegrity(string $migrationName, string $file): void
+    {
+        if ($this->force) {
+            return;
+        }
+
+        $stored = $this->repository->checksumOf($migrationName);
+        $current = $this->checksum($file);
+
+        if ($stored !== null && $stored !== $current) {
+            throw new RuntimeException(
+                "Migration '{$migrationName}' was modified after execution. Use --force to rollback anyway."
+            );
+        }
     }
 
     protected function loadMigration(string $file): Migration

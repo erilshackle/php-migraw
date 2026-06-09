@@ -35,8 +35,9 @@ $args = $_SERVER['argv'];
 
 $command = $args[1] ?? 'migrate';
 
-$dryRun = in_array('--dry-run', $args, true)
-    || in_array('--pretend', $args, true);
+$dryRun = in_array('--dry-run', $args, true) || in_array('--pretend', $args, true);
+
+$force = in_array('--force', $args, true);
 
 try {
     if (in_array($command, ['init', '--init'], true)) {
@@ -75,6 +76,10 @@ try {
 
     $repository = new MigrationRepository($pdo, $table);
     $migrator = new Migrator($pdo, $path, $repository);
+
+    if ($force) {
+        $migrator->force();
+    }
 
     if ($dryRun) {
         $migrator->pretend();

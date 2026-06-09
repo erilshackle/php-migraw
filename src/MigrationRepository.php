@@ -25,6 +25,7 @@ class MigrationRepository
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 migration VARCHAR(255) NOT NULL UNIQUE,
                 batch INTEGER NOT NULL,
+                checksum VARCHAR(64) NOT NULL,
                 executed_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ",
@@ -48,6 +49,7 @@ class MigrationRepository
         ",
         };
     }
+
 
     protected function driver(): string
     {
@@ -92,14 +94,31 @@ class MigrationRepository
         return ((int) $stmt->fetchColumn()) + 1;
     }
 
-    public function log(string $migration, int $batch): void
+    public function checksumOf(
+        string $migration
+    ): ?string {
+        $stmt = $this->pdo->prepare("
+        SELECT checksum
+        FROM {$this->table}
+        WHERE migration = :migration
+        LIMIT 1
+    ");
+
+        $stmt->execute([
+            'migration' => $migration,
+        ]);
+
+        return $stmt->fetchColumn() ?: null;
+    }
+
+    public function log(string $migration, int $batch, string $checksum): void
     {
         $this->ensureTableExists();
 
         $stmt = $this->pdo->prepare("
-            INSERT INTO {$this->table} (migration, batch)
-            VALUES (:migration, :batch)
-        ");
+        INSERT INTO {$this->table} (migration, batch, checksum)
+        VALUES (:migration, :batch, :checksum)
+    ");
 
         $stmt->execute([
             'migration' => $migration,
