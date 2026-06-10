@@ -15,13 +15,13 @@
  *  rollback   Rollback the last migration batch
  *  status     Show migration status
  *  reset      Rollback all executed migrations
- *  refresh    Reset and run all migrations again
  *  fresh      Safe refresh: reset then migrate
  *  make       Create a new migration file
  *
  * @author Eril TS Carvalho
  * @copyright Copyright (c) 2026 Eril TS Carvalho
- * Released under the MIT License.
+ * @license MIT
+ * @version 0.1.0
  *
  * @link https://github.com/erilshackle/php-migraw
  *
@@ -33,7 +33,7 @@ use Eril\Migraw\MigrationCreator;
 use Eril\Migraw\MigrationRepository;
 use Eril\Migraw\Migrator;
 
-require_once getcwd() . '/vendor/autoload.php';
+require_once 'vendor/autoload.php';
 
 $args = $_SERVER['argv'];
 
