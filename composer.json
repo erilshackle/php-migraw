@@ -13,7 +13,7 @@
     "schema",
     "cli"
   ],
-  "homepage": "https://github.com/erilshackle/php-sql-migrator",
+  "homepage": "https://github.com/erilshackle/php-migraw",
   "license": "MIT",
   "type": "library",
   "authors": [
@@ -25,8 +25,8 @@
     }
   ],
   "support": {
-    "issues": "https://github.com/erilshackle/php-sql-migrator/issues",
-    "source": "https://github.com/erilshackle/php-sql-migrator"
+    "issues": "https://github.com/erilshackle/php-migraw/issues",
+    "source": "https://github.com/erilshackle/php-migraw"
   },
   "funding": [],
   "require": {
@@ -47,7 +47,7 @@
     }
   },
   "bin": [
-    "bin/sql-migrator"
+    "bin/migraw"
   ],
   "scripts": {
     "test": "phpunit",

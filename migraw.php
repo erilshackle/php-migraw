@@ -8,12 +8,12 @@ return [
     |--------------------------------------------------------------------------
     |
     | Optional file loaded before the migrator starts.
-    | Useful for loading Composer, environment variables, constants,
+    | Useful for loading environment variables, constants,
     | framework bootstrap files, or application services.
     |
     */
 
-    'bootstrap' => 'bootstrap.php',
+    // 'bootstrap' => 'bootstrap.php',
 
     /*
     |--------------------------------------------------------------------------

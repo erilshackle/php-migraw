@@ -42,7 +42,7 @@ $force = in_array('--force', $args, true);
 
 try {
     if (in_array($command, ['init', '--init'], true)) {
-        initConfig();
+        initConfig($force);
         exit(0);
     }
 
@@ -236,7 +236,7 @@ function make(string $path, ?string $name): void
 {
     if (! $name) {
         echo "Migration name is required.\n";
-        echo "Usage: php vendor/bin/migraw make create_users_table\n";
+        echo "Usage: vendor/bin/migraw make create_users_table\n";
         exit(1);
     }
 
@@ -327,11 +327,11 @@ function printPretendedSql(Migrator $migrator): void
     }
 }
 
-function initConfig(): void
+function initConfig(bool $forced): void
 {
     $configPath = basePath('migraw.php');
 
-    if (file_exists($configPath)) {
+    if (!$forced && file_exists($configPath)) {
         echo "Config file already exists: migraw.php\n";
         return;
     }
@@ -382,8 +382,8 @@ return [
     | Database Connection
     |--------------------------------------------------------------------------
     |
-    | You may configure the connection using an array, a \PDO instance,
-    | or a callable that returns a \PDO instance.
+    | You may configure the connection using an array, a PDO instance,
+    | or a callable that returns a PDO instance.
     |
     */
 
