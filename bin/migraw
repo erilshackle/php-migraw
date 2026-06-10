@@ -273,7 +273,7 @@ function make(string $path, ?string $name): void
     }
 
     $creator = new MigrationCreator($path);
-    $file = $creator->create($name);
+    $file = str_replace((string)getcwd(), '', $creator->create($name));
 
     echo "Created migration: {$file}\n";
 }
