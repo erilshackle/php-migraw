@@ -26,7 +26,7 @@ Write raw SQL when you want complete control, or use the optional SQL builder fo
 ## Installation
 
 ```bash
-composer require eril/sql-migrator
+composer require eril/migraw
 ```
 
 ---
@@ -37,6 +37,7 @@ Initialize the configuration file:
 
 ```bash
 php vendor/bin/migraw init
+php vendor/bin/migraw init:mysql # mysql | pgsql | mysql
 ```
 
 This will create:
@@ -115,7 +116,7 @@ Generated file:
 
 ```txt
 database/migrations/
-└── 2026_06_09_120000_create_users_table.php
+└── 2026_06_17_230000_create_users_table.php
 ```
 
 ---
@@ -209,12 +210,14 @@ Run all pending migrations:
 
 ```bash
 vendor/bin/migraw migrate
+vendor/bin/migraw up
 ```
 
 Rollback the last batch:
 
 ```bash
 vendor/bin/migraw rollback
+vendor/bin/migraw down
 ```
 
 Rollback all executed migrations:
@@ -224,12 +227,6 @@ vendor/bin/migraw reset
 ```
 
 Reset and re-run all migrations:
-
-```bash
-vendor/bin/migraw refresh
-```
-
-Safe refresh alias:
 
 ```bash
 vendor/bin/migraw fresh
