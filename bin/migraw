@@ -9,12 +9,15 @@
  * Simple SQL-first migrations for PHP.
  *
  * This file is the command-line entry point responsible for:
- *
- * - Creating migration files
- * - Running pending migrations
- * - Rolling back migration batches
- * - Refreshing and resetting migrations
- * - Displaying migration status
+ * [Commands]
+ *  init       Create the default migraw.php config file
+ *  migrate    Run pending migrations
+ *  rollback   Rollback the last migration batch
+ *  status     Show migration status
+ *  reset      Rollback all executed migrations
+ *  refresh    Reset and run all migrations again
+ *  fresh      Safe refresh: reset then migrate
+ *  make       Create a new migration file
  *
  * @author Eril TS Carvalho
  * @Copyright Copyright (c) 2026 Erilando Carvalho.
@@ -34,7 +37,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 $args = $_SERVER['argv'];
 
-$command = $args[1] ?? 'migrate';
+$command = $args[1] ?? null;
 
 $dryRun = in_array('--dry-run', $args, true) || in_array('--pretend', $args, true);
 
@@ -43,6 +46,12 @@ $force = in_array('--force', $args, true);
 try {
     if (in_array($command, ['init', '--init'], true)) {
         initConfig($force);
+        exit(0);
+    }
+
+    if (str_starts_with($command, 'init:')) {
+        $driver = substr($command, strlen('init:'));
+        initConfig($force, $driver);
         exit(0);
     }
 
@@ -56,7 +65,7 @@ try {
 
     if (! file_exists($configPath)) {
         echo "Config file not found: migraw.php\n";
-        echo "Run: php vendor/bin/migraw init\n";
+        echo Console::bold("Run: php vendor/bin/migraw init\n");
         exit(1);
     }
 
@@ -86,9 +95,14 @@ try {
         $migrator->pretend();
     }
 
+    if ($command === null) {
+        confirmAndMigrate($migrator);
+        exit(0);
+    }
+
     match ($command) {
-        'migrate' => migrate($migrator, $dryRun),
-        'rollback' => rollback($migrator, $dryRun),
+        'migrate', 'up' => migrate($migrator, $dryRun),
+        'rollback', 'down' => rollback($migrator, $dryRun),
         'status' => status($migrator),
         'reset' => resetMigrations($migrator, $dryRun),
         'refresh' => refresh($migrator, $dryRun),
@@ -143,6 +157,39 @@ function rollback(Migrator $migrator, bool $dryRun = false): void
         echo Console::yellow(
             "Rolled back: {$migration}\n"
         );
+    }
+}
+
+function confirmAndMigrate(Migrator $migrator): void
+{
+    $pending = $migrator->pending();
+
+    if ($pending === []) {
+        echo "Nothing to migrate.\n";
+        return;
+    }
+
+    echo "Pending migrations:\n\n";
+
+    foreach ($pending as $migration) {
+        echo Console::gray("  - {$migration}\n");
+    }
+
+    echo Console::bold("\nRun these migrations? [y/N]: ");
+
+    $answer = trim(fgets(STDIN));
+
+    if (! in_array(strtolower($answer), ['y', 'yes'], true)) {
+        echo "Cancelled.\n";
+        return;
+    }
+
+    echo "\n";
+
+    $executed = $migrator->migrate();
+
+    foreach ($executed as $migration) {
+        echo Console::green("Migrated: {$migration}\n");
     }
 }
 
@@ -327,7 +374,7 @@ function printPretendedSql(Migrator $migrator): void
     }
 }
 
-function initConfig(bool $forced): void
+function initConfig(bool $forced, string $driver = 'mysql'): void
 {
     $configPath = basePath('migraw.php');
 
@@ -336,7 +383,7 @@ function initConfig(bool $forced): void
         return;
     }
 
-    file_put_contents($configPath, defaultConfigStub());
+    file_put_contents($configPath, defaultConfigStub($driver));
 
     if (! is_dir(basePath('database/migrations'))) {
         mkdir(basePath('database/migrations'), 0775, true);
@@ -346,9 +393,46 @@ function initConfig(bool $forced): void
     echo "Created directory: database/migrations\n";
 }
 
-function defaultConfigStub(): string
+function defaultConfigStub(string $driver = 'mysql'): string
 {
-    return <<<'PHP'
+    $driver = strtolower($driver);
+    $connection = match ($driver) {
+
+        'sqlite' => <<<'PHP'
+'connection' => [
+    'driver' => 'sqlite',
+    'sqlite_path' => 'database/database.sqlite',
+],
+PHP,
+
+        'pgsql' => <<<'PHP'
+'connection' => [
+    'driver' => $_ENV['DB_CONNECTION'] ?? 'pgsql',
+
+    'host' => $_ENV['DB_HOST'] ?? '127.0.0.1',
+    'port' => $_ENV['DB_PORT'] ?? '5432',
+    'database' => $_ENV['DB_DATABASE'] ?? '',
+    'username' => $_ENV['DB_USERNAME'] ?? 'postgres',
+    'password' => $_ENV['DB_PASSWORD'] ?? '',
+],
+PHP,
+
+        default => <<<'PHP'
+'connection' => [
+    'driver' => $_ENV['DB_CONNECTION'] ?? 'mysql',
+
+    'host' => $_ENV['DB_HOST'] ?? '127.0.0.1',
+    'port' => $_ENV['DB_PORT'] ?? '3306',
+    'database' => $_ENV['DB_DATABASE'] ?? '',
+    'username' => $_ENV['DB_USERNAME'] ?? 'root',
+    'password' => $_ENV['DB_PASSWORD'] ?? '',
+
+    'charset' => $_ENV['DB_CHARSET'] ?? 'utf8mb4',
+],
+PHP
+    };
+
+    return <<<PHP
 <?php
 
 return [
@@ -382,24 +466,14 @@ return [
     | Database Connection
     |--------------------------------------------------------------------------
     |
+    | You may configure the connection using:
+    |
     | You may configure the connection using an array, a PDO instance,
     | or a callable that returns a PDO instance.
     |
     */
 
-    'connection' => [
-        'driver' => $_ENV['DB_CONNECTION'] ?? 'mysql',
-
-        'host' => $_ENV['DB_HOST'] ?? '127.0.0.1',
-        'port' => $_ENV['DB_PORT'] ?? '3306',
-        'database' => $_ENV['DB_DATABASE'] ?? '',
-        'username' => $_ENV['DB_USERNAME'] ?? 'root',
-        'password' => $_ENV['DB_PASSWORD'] ?? '',
-
-        'charset' => $_ENV['DB_CHARSET'] ?? 'utf8mb4',
-
-        'sqlite_path' => $_ENV['DB_SQLITE_PATH'] ?? 'database/database.sqlite',
-    ],
+    {$connection},
 
 ];
 

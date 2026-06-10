@@ -120,6 +120,22 @@ class Migrator
         return $status;
     }
 
+    public function pending(): array
+    {
+        $files = $this->getMigrationFiles();
+        $ran = $this->repository->getRan();
+
+        $pending = [];
+
+        foreach ($files as $migrationName => $file) {
+            if (!in_array($migrationName, $ran, true)) {
+                $pending[] = $migrationName;
+            }
+        }
+
+        return $pending;
+    }
+
 
 
     public function pretend(): static
