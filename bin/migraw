@@ -409,7 +409,7 @@ PHP,
     ]
 PHP,
 
-        default => <<<'PHP'
+        'mysql' => <<<'PHP'
 'connection' => [
         'driver' => $_ENV['DB_CONNECTION'] ?? 'mysql',
 
@@ -420,6 +420,21 @@ PHP,
         'password' => $_ENV['DB_PASSWORD'] ?? '',
 
         'charset' => $_ENV['DB_CHARSET'] ?? 'utf8mb4',
+    ]
+PHP,
+
+        default => <<<'PHP'
+'connection' => [
+        'driver' => $_ENV['DB_CONNECTION'] ?? 'sqlite',
+
+        'host' => $_ENV['DB_HOST'] ?? '127.0.0.1',
+        'port' => $_ENV['DB_PORT'] ?? '3306',
+        'database' => $_ENV['DB_DATABASE'] ?? '',
+        'username' => $_ENV['DB_USERNAME'] ?? 'root',
+        'password' => $_ENV['DB_PASSWORD'] ?? '',
+        'charset' => $_ENV['DB_CHARSET'] ?? 'utf8mb4',
+        
+        'sqlite_path' => 'database/database.sqlite',
     ]
 PHP
     };
