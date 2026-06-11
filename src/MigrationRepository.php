@@ -25,7 +25,7 @@ class MigrationRepository
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 migration VARCHAR(255) NOT NULL UNIQUE,
                 batch INTEGER NOT NULL,
-                checksum VARCHAR(64) NOT NULL,
+                checksum TEXT NOT NULL,
                 executed_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ",
@@ -35,6 +35,7 @@ class MigrationRepository
                 id SERIAL PRIMARY KEY,
                 migration VARCHAR(255) NOT NULL UNIQUE,
                 batch INTEGER NOT NULL,
+                checksum VARCHAR(64) NOT NULL,
                 executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ",
@@ -44,6 +45,7 @@ class MigrationRepository
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 migration VARCHAR(255) NOT NULL UNIQUE,
                 batch INT NOT NULL,
+                checksum VARCHAR(64) NOT NULL,
                 executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ",
