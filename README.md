@@ -37,7 +37,10 @@ Initialize the configuration file:
 
 ```bash
 php vendor/bin/migraw init
-php vendor/bin/migraw init:mysql # mysql | pgsql | mysql
+```
+or
+```bash
+php vendor/bin/migraw init:mysql # mysql | pgsql | sqlite
 ```
 
 This will create:
