@@ -4,13 +4,15 @@ namespace Eril\Migraw\Sql;
 
 final class Sql
 {
-    public static function create(string $table, $ifNotExists = false): CreateTable
+    public static function create(string $table, bool $ifNotExists = false): CreateTable
     {
-        $t = new CreateTable($table);
+        $statement = new CreateTable($table);
+
         if ($ifNotExists) {
-            $t->ifNotExists();
+            $statement->ifNotExists();
         }
-        return $t;
+
+        return $statement;
     }
 
     public static function alter(string $table): AlterTable
@@ -23,12 +25,30 @@ final class Sql
         return new RenameTable($table);
     }
 
-    public static function drop(string $table, $ifExists = false): DropTable
+    public static function drop(string $table, bool $ifExists = false): DropTable
     {
-        $t = new DropTable($table);
+        $statement = new DropTable($table);
+
         if ($ifExists) {
-            $t->ifExists();
+            $statement->ifExists();
         }
-        return $t;
+
+        return $statement;
+    }
+
+    public static function insert(string $table, bool $ignore = false): Insert
+    {
+        $statement = new Insert($table);
+
+        if ($ignore) {
+            $statement->ignore();
+        }
+
+        return $statement;
+    }
+
+    public static function delete(string $table): Delete
+    {
+        return new Delete($table);
     }
 }

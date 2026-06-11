@@ -320,7 +320,15 @@ class Migrator
     }
 
     /**
-     * Summary of runSql
+     * @param string|array<string|SqlStatement>|SqlStatement $sql
+     * @return void
+     */
+    public function runStatements(string|array|SqlStatement $sql): void
+    {
+        $this->runSql($sql);
+    }
+
+    /**
      * @param string|array<string|SqlStatement>|SqlStatement $sql
      * @return void
      */

@@ -31,6 +31,8 @@
 use Eril\Migraw\Console;
 use Eril\Migraw\MigrationCreator;
 use Eril\Migraw\MigrationRepository;
+use Eril\Migraw\SeederCreator;
+use Eril\Migraw\SeederRunner;
 use Eril\Migraw\Migrator;
 
 require_once 'vendor/autoload.php';
@@ -82,6 +84,7 @@ try {
     $pdo = resolvePdo($config);
 
     $path = resolvePath($config['path'] ?? 'database/migrations');
+    $seedersPath = resolvePath($config['seeders_path'] ?? 'database/seeders');
     $table = $config['table'] ?? 'migrations';
 
     $repository = new MigrationRepository($pdo, $table);
@@ -106,7 +109,9 @@ try {
         'status' => status($migrator),
         'reset' => resetMigrations($migrator, $dryRun),
         'fresh' => fresh($migrator, $dryRun),
+        'seed' => seed($migrator, $seedersPath, $args[2] ?? null),
         'make' => make($path, $args[2] ?? null),
+        'make:seeder' => makeSeeder($seedersPath, $args[2] ?? null),
         'help', '--help', '-h' => help(),
         default => unknownCommand($command),
     };
@@ -135,6 +140,22 @@ function migrate(Migrator $migrator, bool $dryRun = false): void
         echo Console::green(
             "Migrated: {$migration}\n"
         );
+    }
+}
+
+function seed(Migrator $migrator, string $path, ?string $name = null): void
+{
+    $runner = new SeederRunner($migrator, $path);
+
+    $executed = $runner->run($name);
+
+    if ($executed === []) {
+        echo "No seeders found.\n";
+        return;
+    }
+
+    foreach ($executed as $seeder) {
+        echo Console::green("Seeded: {$seeder}\n");
     }
 }
 
@@ -278,6 +299,20 @@ function make(string $path, ?string $name): void
     echo "Created migration: {$file}\n";
 }
 
+function makeSeeder(string $path, ?string $name): void
+{
+    if (! $name) {
+        echo "Seeder name is required.\n";
+        echo "Usage: vendor/bin/migraw make:seeder AdminSeeder\n";
+        exit(1);
+    }
+
+    $creator = new SeederCreator($path);
+    $file = $creator->create($name);
+
+    echo "Created seeder: {$file}\n";
+}
+
 function resolvePdo(array $config): \PDO
 {
     $pdo = $config['pdo'] ?? $config['connection'] ?? null;
@@ -374,10 +409,15 @@ function initConfig(bool $forced, string $driver = 'mysql'): void
         mkdir(basePath('database/migrations'), 0775, true);
     }
 
+    if (! is_dir(basePath('database/seeders'))) {
+        mkdir(basePath('database/seeders'), 0775, true);
+        echo "Created directory: database/seeders\n";
+    }
+
     echo Console::green("Created config: migraw.php\n");
 
     if (! is_dir(basePath('database/migrations'))) {
-        mkdir(...);
+        mkdir(basePath('database/migrations'), 0775, true);
 
         echo Console::green(
             "Created directory: database/migrations\n"
@@ -467,6 +507,7 @@ return [
     */
 
     'path' => 'database/migrations',
+    'seeders_path' => 'database/seeders',
 
     /*
     |--------------------------------------------------------------------------
