@@ -377,7 +377,7 @@ function initConfig(bool $forced, string $driver = 'mysql'): void
     echo Console::green("Created config: migraw.php\n");
 
     if (! is_dir(basePath('database/migrations'))) {
-        mkdir(...);
+        mkdir(basePath('database/migrations'), 0775, true);
 
         echo Console::green(
             "Created directory: database/migrations\n"
