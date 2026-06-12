@@ -7,13 +7,8 @@ use RuntimeException;
 
 class Insert implements SqlStatement
 {
-    protected bool $ignore = false;
 
     protected array $rows = [];
-
-    protected array $duplicateColumns = [];
-
-    protected array $duplicateExpressions = [];
 
     public function __construct(
         protected string $table
@@ -23,12 +18,6 @@ class Insert implements SqlStatement
         }
     }
 
-    public function ignore(): static
-    {
-        $this->ignore = true;
-
-        return $this;
-    }
 
     public function row(array $values): static
     {
@@ -58,33 +47,8 @@ class Insert implements SqlStatement
         return $this;
     }
 
-    public function onDuplicateUpdate(array $columns): static
-    {
-        if ($columns === []) {
-            throw new InvalidArgumentException('Duplicate update columns cannot be empty.');
-        }
 
-        foreach ($columns as $column) {
-            $this->duplicateColumns[] = trim((string) $column);
-        }
-
-        return $this;
-    }
-
-    public function onDuplicate(string $expression): static
-    {
-        $expression = trim($expression);
-
-        if ($expression === '') {
-            throw new InvalidArgumentException('Duplicate update expression cannot be empty.');
-        }
-
-        $this->duplicateExpressions[] = $expression;
-
-        return $this;
-    }
-
-    public function toSql(): string
+    public function toSql(?string $driver = null): string
     {
         if ($this->rows === []) {
             throw new RuntimeException("Cannot insert into {$this->table} without rows.");
@@ -94,18 +58,11 @@ class Insert implements SqlStatement
 
         $this->assertRowsHaveSameColumns($columns);
 
-        $insert = $this->ignore ? 'INSERT IGNORE INTO' : 'INSERT INTO';
 
-        $sql = "{$insert} {$this->table} ("
+        $sql = "INSERT INTO {$this->table} ("
             . implode(', ', $columns)
             . ")\nVALUES\n    "
             . implode(",\n    ", $this->compileRows($columns));
-
-        $duplicate = $this->compileDuplicateUpdate();
-
-        if ($duplicate !== '') {
-            $sql .= "\n{$duplicate}";
-        }
 
         return $sql . ';';
     }
@@ -136,29 +93,6 @@ class Insert implements SqlStatement
         }
 
         return $compiled;
-    }
-
-    protected function compileDuplicateUpdate(): string
-    {
-        $parts = [];
-
-        foreach ($this->duplicateColumns as $column) {
-            if ($column === '') {
-                continue;
-            }
-
-            $parts[] = "{$column} = VALUES({$column})";
-        }
-
-        foreach ($this->duplicateExpressions as $expression) {
-            $parts[] = $expression;
-        }
-
-        if ($parts === []) {
-            return '';
-        }
-
-        return "ON DUPLICATE KEY UPDATE\n    " . implode(",\n    ", $parts);
     }
 
     protected function quote(mixed $value): string

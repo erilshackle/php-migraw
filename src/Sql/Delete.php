@@ -39,7 +39,7 @@ class Delete implements SqlStatement
         return $this;
     }
 
-    public function toSql(): string
+    public function toSql(?string $driver = null): string
     {
         if ($this->where === null && ! $this->all) {
             throw new RuntimeException(

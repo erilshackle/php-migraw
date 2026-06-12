@@ -39,34 +39,6 @@ abstract class Seeder
     }
 
     /**
-     * Create a new INSERT IGNORE statement.
-     *
-     * Useful for idempotent seeders.
-     *
-     * @param string $table Target table name.
-     */
-    protected function insertIgnore(
-        string $table
-    ): Insert {
-        return (new Insert($table))
-            ->ignore();
-    }
-
-    /**
-     * Create a new INSERT ... ON DUPLICATE KEY UPDATE statement.
-     *
-     * @param string $table Target table name.
-     * @param string[] $columns Columns to update when a duplicate key is found.
-     */
-    protected function insertOrUpdate(
-        string $table,
-        array $columns
-    ): Insert {
-        return (new Insert($table))
-            ->onDuplicateUpdate($columns);
-    }
-
-    /**
      * Create a DELETE statement.
      *
      * A WHERE clause is required unless ->all()
