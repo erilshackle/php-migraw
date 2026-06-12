@@ -63,7 +63,7 @@ class CreateTable implements SqlStatement
         return $this;
     }
 
-    public function toSql(): string
+    public function toSql(?string $driver = null): string
     {
         $parts = array_merge($this->fields, $this->constraints);
 

@@ -21,7 +21,7 @@ class DropTable implements SqlStatement
         return $this;
     }
 
-    public function toSql(): string
+    public function toSql(?string $driver = null): string
     {
         $ifExists = $this->ifExists ? 'IF EXISTS ' : '';
 

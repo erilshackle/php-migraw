@@ -84,7 +84,7 @@ class AlterTable implements SqlStatement
         return $this;
     }
 
-    public function toSql(): string
+    public function toSql(?string $driver = null): string
     {
         if ($this->operations === []) {
             throw new \RuntimeException("Cannot alter table {$this->table} without operations.");

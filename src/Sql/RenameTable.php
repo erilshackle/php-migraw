@@ -17,7 +17,7 @@ class RenameTable implements SqlStatement
         return $this;
     }
 
-    public function toSql(): string
+    public function toSql(?string $driver = null): string
     {
         if (! $this->newName) {
             throw new \RuntimeException("New table name is required to rename {$this->table}.");
