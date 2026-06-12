@@ -10,3 +10,4 @@ composer.lock
 # composer.lock
 .phpunit.result.cache
 database/database.sqlite
+database/seeders/

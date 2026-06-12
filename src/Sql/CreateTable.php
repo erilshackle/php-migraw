@@ -14,6 +14,11 @@ class CreateTable implements SqlStatement
         protected string $table
     ) {}
 
+    /**
+     * Add IF NOT EXISTS.
+     *
+     * @return static
+     */
     public function ifNotExists(): static
     {
         $this->ifNotExists = true;
@@ -21,6 +26,15 @@ class CreateTable implements SqlStatement
         return $this;
     }
 
+    /**
+     * Add a table column definition.
+     * 
+     * var TYPE DEFINITION
+     *
+     * @param string $definition
+     *
+     * @return static
+     */
     public function field(string $definition): static
     {
         $this->fields[] = trim($definition);
@@ -28,6 +42,20 @@ class CreateTable implements SqlStatement
         return $this;
     }
 
+    /**
+     * Add a table constraint.
+     *
+     * Examples:
+     *
+     * - PRIMARY KEY
+     * - UNIQUE
+     * - FOREIGN KEY
+     * - CHECK
+     *
+     * @param string $definition
+     *
+     * @return static
+     */
     public function constraint(string $definition): static
     {
         $this->constraints[] = trim($definition);
@@ -35,7 +63,7 @@ class CreateTable implements SqlStatement
         return $this;
     }
 
-    public function toSql(): string
+    public function toSql(?string $driver = null): string
     {
         $parts = array_merge($this->fields, $this->constraints);
 

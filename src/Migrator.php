@@ -10,6 +10,7 @@ use Throwable;
 class Migrator
 {
 
+    protected ?string $driver = null;
     protected bool $pretending = false;
     protected bool $force = false;
 
@@ -21,6 +22,7 @@ class Migrator
         protected ?MigrationRepository $repository = null
     ) {
         $this->repository ??= new MigrationRepository($pdo);
+        $this->driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
     }
 
     protected function checksum(
@@ -319,16 +321,46 @@ class Migrator
         };
     }
 
+    protected function normalizeStatements(
+        string|SqlStatement|array $sql
+    ): array {
+        $items = is_array($sql)
+            ? $sql
+            : [$sql];
+
+        $result = [];
+
+        foreach ($items as $item) {
+            if ($item instanceof SqlStatement) {
+                $result[] = $item->toSql($this->driver);
+                continue;
+            }
+
+            $result[] = (string) $item;
+        }
+
+        return $result;
+    }
+
     /**
-     * Summary of runSql
+     * @param string|array<string|SqlStatement>|SqlStatement $sql
+     * @return void
+     */
+    public function runStatements(string|array|SqlStatement $sql): void
+    {
+        $this->runSql($sql);
+    }
+
+    /**
      * @param string|array<string|SqlStatement>|SqlStatement $sql
      * @return void
      */
     protected function runSql(string|array|SqlStatement $sql): void
     {
-        $statements = is_array($sql) ? $sql : [$sql];
+        $statements = $this->normalizeStatements($sql);
 
-        $useTransaction = ! $this->pretending && $this->supportsSchemaTransactions();
+        $useTransaction = ! $this->pretending
+            && $this->supportsSchemaTransactions();
 
         try {
             if ($useTransaction) {
@@ -336,10 +368,6 @@ class Migrator
             }
 
             foreach ($statements as $statement) {
-                if ($statement instanceof SqlStatement) {
-                    $statement = $statement->toSql();
-                }
-
                 $statement = trim($statement);
 
                 if ($statement === '') {

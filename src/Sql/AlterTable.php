@@ -2,6 +2,9 @@
 
 namespace Eril\Migraw\Sql;
 
+/**
+ * ALTER TABLE statement builder.
+ */
 class AlterTable implements SqlStatement
 {
     protected array $operations = [];
@@ -10,6 +13,13 @@ class AlterTable implements SqlStatement
         protected string $table
     ) {}
 
+    /**
+     * Add a column or constraint.
+     *
+     * @param string $definition
+     *
+     * @return static
+     */
     public function add(string $definition): static
     {
         $this->operations[] = 'ADD COLUMN ' . trim($definition);
@@ -17,6 +27,13 @@ class AlterTable implements SqlStatement
         return $this;
     }
 
+    /**
+     * Modify a column definition.
+     *
+     * @param string $definition
+     *
+     * @return static
+     */
     public function modify(string $definition): static
     {
         $this->operations[] = 'MODIFY COLUMN ' . trim($definition);
@@ -24,16 +41,31 @@ class AlterTable implements SqlStatement
         return $this;
     }
 
-    public function rename(string $from, string $to): static
+    /**
+     * Rename a column.
+     *
+     * @param string $column
+     * @param string $newName
+     *
+     * @return static
+     */
+    public function rename(string $column, string $newName): static
     {
-        $this->operations[] = "RENAME COLUMN {$from} TO {$to}";
+        $this->operations[] = "RENAME COLUMN {$column} TO {$newName}";
 
         return $this;
     }
 
-    public function drop(string $field): static
+    /**
+     * Drop a column, index or constraint.
+     *
+     * @param string $column
+     *
+     * @return static
+     */
+    public function drop(string $column): static
     {
-        $this->operations[] = "DROP COLUMN {$field}";
+        $this->operations[] = "DROP COLUMN {$column}";
 
         return $this;
     }
@@ -52,7 +84,7 @@ class AlterTable implements SqlStatement
         return $this;
     }
 
-    public function toSql(): string
+    public function toSql(?string $driver = null): string
     {
         if ($this->operations === []) {
             throw new \RuntimeException("Cannot alter table {$this->table} without operations.");
