@@ -582,18 +582,23 @@ Usage:
   php vendor/bin/migraw rollback
   php vendor/bin/migraw down
 
+  php vendor/bin/migraw seed
+  php vendor/bin/migraw seed AdminSeeder
+
   php vendor/bin/migraw status
   php vendor/bin/migraw reset
   php vendor/bin/migraw fresh
 
 Commands:
-  init       Create the default migraw.php config file
-  status     Show migration status
-  migrate    Run pending migrations
-  rollback   Rollback the last migration batch
-  reset      Rollback all executed migrations
-  fresh      Reset and run all migrations again
-  make       Create a new migration file
+  init              Create the default migraw.php config file
+  make              Create a new migration file
+  make:seeder       Create a new seeder file
+  status            Show migration status
+  migrate, up       Run pending migrations
+  rollback, down    Rollback the last migration batch
+  reset             Rollback all executed migrations
+  fresh             Reset and run all migrations again
+  seed              Run all seeders or a specific seeder
 
 Options:
   --dry-run, --pretend   Show SQL without executing it
