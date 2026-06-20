@@ -109,9 +109,9 @@ try {
         'status' => status($migrator),
         'reset' => resetMigrations($migrator, $dryRun),
         'fresh' => fresh($migrator, $dryRun),
-        'seed' => seed($migrator, $seedersPath, $args[2] ?? null),
         'make' => make($path, $args[2] ?? null),
-        'make:seeder' => makeSeeder($seedersPath, $args[2] ?? null),
+        'seed' => seed($migrator, $seedersPath, $args[2] ?? null),
+        'seed:make' => makeSeeder($seedersPath, $args[2] ?? null),
         'help', '--help', '-h' => help(),
         default => unknownCommand($command),
     };
@@ -575,6 +575,7 @@ Usage:
   php vendor/bin/migraw init:pgsql
   
   php vendor/bin/migraw make migration_name
+  php vendor/bin/migraw seed:make AdminSeeder
   
   php vendor/bin/migraw migrate
   php vendor/bin/migraw up
@@ -592,13 +593,13 @@ Usage:
 Commands:
   init              Create the default migraw.php config file
   make              Create a new migration file
-  make:seeder       Create a new seeder file
   status            Show migration status
   migrate, up       Run pending migrations
   rollback, down    Rollback the last migration batch
   reset             Rollback all executed migrations
   fresh             Reset and run all migrations again
   seed              Run all seeders or a specific seeder
+  seed:make         Create a new seeder file
 
 Options:
   --dry-run, --pretend   Show SQL without executing it
