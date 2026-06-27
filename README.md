@@ -16,7 +16,7 @@ Write raw SQL when you want complete control, or use the optional SQL builder fo
 * Migration batches
 * Rollback support
 * Dry-run mode
-* Migration integrity checks using checksums
+* ~Migration integrity checks using checksums~
 * CLI tooling
 * No ORM dependency
 * No framework dependency
@@ -268,38 +268,9 @@ CREATE TABLE users (
 
 ---
 
-## Migration Integrity
-
-When a migration is executed, Migraw stores a checksum of the migration file.
-
-If the file is modified afterwards, rollback operations are blocked:
-
-```txt
-Migration '2026_06_09_120000_create_users_table'
-was modified after execution.
-```
-
-Status output:
-
-```txt
-[ran]       2026_06_09_120000_create_users_table
-[modified]  2026_06_09_130000_add_email_to_users
-[pending]   2026_06_09_140000_create_posts_table
-```
-
-To ignore checksum validation:
-
-```bash
-vendor/bin/migraw rollback --force
-```
-
----
-
 ## Best Practices
 
-Once a migration has been executed:
-
-**Do not modify it.**
+Never modify a migration after it has been executed.
 
 Instead, create a new migration.
 
@@ -337,6 +308,7 @@ No ORM dependency.
 No framework dependency.
 
 Just migrations.
+
 
 ---
 

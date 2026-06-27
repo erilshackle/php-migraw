@@ -273,7 +273,7 @@ function status(Migrator $migrator): void
         $status = match ($row['status']) {
             'ran' => Console::green('[ran]'),
             'pending' => Console::yellow('[pending]'),
-            'modified' => Console::red('[modified]'),
+            // 'modified' => Console::red('[modified]'),
             default => "[{$row['status']}]",
         };
 
@@ -603,7 +603,7 @@ Commands:
 
 Options:
   --dry-run, --pretend   Show SQL without executing it
-  --force                Force execution, ignoring safety checks.
+  --force                Overwrite existing configuration when using init
 
 TXT;
 }

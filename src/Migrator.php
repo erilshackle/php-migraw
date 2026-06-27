@@ -25,12 +25,6 @@ class Migrator
         $this->driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
     }
 
-    protected function checksum(
-        string $file
-    ): string {
-        return hash_file('sha256', $file);
-    }
-
     public function force(): static
     {
         $this->force = true;
@@ -59,8 +53,7 @@ class Migrator
             if (! $this->pretending) {
                 $this->repository->log(
                     $migrationName,
-                    $batch,
-                    $this->checksum($files[$migrationName])
+                    $batch
                 );
             }
 
@@ -86,10 +79,6 @@ class Migrator
                 throw new RuntimeException("Migration file not found: {$migrationName}");
             }
 
-            $this->ensureMigrationIntegrity(
-                $migrationName,
-                $files[$migrationName]
-            );
 
             $migration = $this->loadMigration($files[$migrationName]);
 
@@ -165,10 +154,6 @@ class Migrator
                 throw new RuntimeException("Migration file not found: {$migrationName}");
             }
 
-            $this->ensureMigrationIntegrity(
-                $migrationName,
-                $files[$migrationName]
-            );
 
             $migration = $this->loadMigration($files[$migrationName]);
 
@@ -285,21 +270,6 @@ class Migrator
         return $mapped;
     }
 
-    protected function ensureMigrationIntegrity(string $migrationName, string $file): void
-    {
-        if ($this->force) {
-            return;
-        }
-
-        $stored = $this->repository->checksumOf($migrationName);
-        $current = $this->checksum($file);
-
-        if ($stored !== null && $stored !== $current) {
-            throw new RuntimeException(
-                "Migration '{$migrationName}' was modified after execution. Use --force to rollback anyway."
-            );
-        }
-    }
 
     protected function loadMigration(string $file): Migration
     {

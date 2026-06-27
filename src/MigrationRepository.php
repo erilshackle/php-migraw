@@ -23,9 +23,8 @@ class MigrationRepository
             'sqlite' => "
             CREATE TABLE IF NOT EXISTS {$this->table} (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                migration VARCHAR(255) NOT NULL UNIQUE,
+                migration TEXT NOT NULL UNIQUE,
                 batch INTEGER NOT NULL,
-                checksum TEXT NOT NULL,
                 executed_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ",
@@ -35,7 +34,6 @@ class MigrationRepository
                 id SERIAL PRIMARY KEY,
                 migration VARCHAR(255) NOT NULL UNIQUE,
                 batch INTEGER NOT NULL,
-                checksum VARCHAR(64) NOT NULL,
                 executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ",
@@ -45,7 +43,6 @@ class MigrationRepository
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 migration VARCHAR(255) NOT NULL UNIQUE,
                 batch INT NOT NULL,
-                checksum VARCHAR(64) NOT NULL,
                 executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ",
@@ -96,36 +93,18 @@ class MigrationRepository
         return ((int) $stmt->fetchColumn()) + 1;
     }
 
-    public function checksumOf(
-        string $migration
-    ): ?string {
-        $stmt = $this->pdo->prepare("
-        SELECT checksum
-        FROM {$this->table}
-        WHERE migration = :migration
-        LIMIT 1
-    ");
-
-        $stmt->execute([
-            'migration' => $migration,
-        ]);
-
-        return $stmt->fetchColumn() ?: null;
-    }
-
-    public function log(string $migration, int $batch, string $checksum): void
+    public function log(string $migration, int $batch): void
     {
         $this->ensureTableExists();
 
         $stmt = $this->pdo->prepare("
-        INSERT INTO {$this->table} (migration, batch, checksum)
-        VALUES (:migration, :batch, :checksum)
+        INSERT INTO {$this->table} (migration, batch)
+        VALUES (:migration, :batch)
     ");
 
         $stmt->execute([
             'migration' => $migration,
             'batch' => $batch,
-            'checksum' => $checksum
         ]);
     }
 
