@@ -17,11 +17,15 @@
  *  reset      Rollback all executed migrations
  *  fresh      Safe refresh: reset then migrate
  *  make       Create a new migration file
+ * 
+ * example:
+ *  php vendor/bin/migraw init
  *
  * @author Eril TS Carvalho
  * @copyright Copyright (c) 2026 Eril TS Carvalho
  * @license MIT
- * @version v0.1
+ * @version 1.0.0
+ * 
  *
  * @link https://github.com/erilshackle/php-migraw
  *
@@ -31,11 +35,20 @@
 use Eril\Migraw\Console;
 use Eril\Migraw\MigrationCreator;
 use Eril\Migraw\MigrationRepository;
-use Eril\Migraw\SeederCreator;
-use Eril\Migraw\SeederRunner;
 use Eril\Migraw\Migrator;
 
-require_once 'vendor/autoload.php';
+$autoloadFiles = [
+    __DIR__ . '/../vendor/autoload.php',
+    __DIR__ . '/../../../autoload.php',
+    getcwd() . '/vendor/autoload.php',
+];
+
+foreach ($autoloadFiles as $autoload) {
+    if (file_exists($autoload)) {
+        require_once $autoload;
+        break;
+    }
+}
 
 $args = $_SERVER['argv'];
 
@@ -84,7 +97,6 @@ try {
     $pdo = resolvePdo($config);
 
     $path = resolvePath($config['path'] ?? 'database/migrations');
-    $seedersPath = resolvePath($config['seeders_path'] ?? 'database/seeders');
     $table = $config['table'] ?? 'migrations';
 
     $repository = new MigrationRepository($pdo, $table);
@@ -110,8 +122,6 @@ try {
         'reset' => resetMigrations($migrator, $dryRun),
         'fresh' => fresh($migrator, $dryRun),
         'make' => make($path, $args[2] ?? null),
-        'seed' => seed($migrator, $seedersPath, $args[2] ?? null),
-        'seed:make' => makeSeeder($seedersPath, $args[2] ?? null),
         'help', '--help', '-h' => help(),
         default => unknownCommand($command),
     };
@@ -140,22 +150,6 @@ function migrate(Migrator $migrator, bool $dryRun = false): void
         echo Console::green(
             "Migrated: {$migration}\n"
         );
-    }
-}
-
-function seed(Migrator $migrator, string $path, ?string $name = null): void
-{
-    $runner = new SeederRunner($migrator, $path);
-
-    $executed = $runner->run($name);
-
-    if ($executed === []) {
-        echo "No seeders found.\n";
-        return;
-    }
-
-    foreach ($executed as $seeder) {
-        echo Console::green("Seeded: {$seeder}\n");
     }
 }
 
@@ -193,7 +187,9 @@ function confirmAndMigrate(Migrator $migrator): void
         return;
     }
 
-    echo "Pending migrations:\n\n";
+    $count = count($pending);
+
+    echo "Pending migrations ($count):\n\n";
 
     foreach ($pending as $migration) {
         echo Console::gray("  - {$migration}\n");
@@ -273,7 +269,7 @@ function status(Migrator $migrator): void
         $status = match ($row['status']) {
             'ran' => Console::green('[ran]'),
             'pending' => Console::yellow('[pending]'),
-            // 'modified' => Console::red('[modified]'),
+            'modified' => Console::cyan('[modified]'),
             default => "[{$row['status']}]",
         };
 
@@ -295,23 +291,11 @@ function make(string $path, ?string $name): void
 
     $creator = new MigrationCreator($path);
     $file = str_replace((string)getcwd(), '', $creator->create($name));
+    // $file = $creator->create($name);
 
     echo "Created migration: {$file}\n";
 }
 
-function makeSeeder(string $path, ?string $name): void
-{
-    if (! $name) {
-        echo "Seeder name is required.\n";
-        echo "Usage: vendor/bin/migraw make:seeder AdminSeeder\n";
-        exit(1);
-    }
-
-    $creator = new SeederCreator($path);
-    $file = $creator->create($name);
-
-    echo "Created seeder: {$file}\n";
-}
 
 function resolvePdo(array $config): \PDO
 {
@@ -409,10 +393,6 @@ function initConfig(bool $forced, string $driver = 'mysql'): void
         mkdir(basePath('database/migrations'), 0775, true);
     }
 
-    if (! is_dir(basePath('database/seeders'))) {
-        mkdir(basePath('database/seeders'), 0775, true);
-        echo "Created directory: database/seeders\n";
-    }
 
     echo Console::green("Created config: migraw.php\n");
 
@@ -507,7 +487,6 @@ return [
     */
 
     'path' => 'database/migrations',
-    'seeders_path' => 'database/seeders',
 
     /*
     |--------------------------------------------------------------------------
@@ -569,37 +548,32 @@ function help(): void
 Migraw
 
 Usage:
-  php vendor/bin/migraw init
-  php vendor/bin/migraw init:sqlite
-  php vendor/bin/migraw init:mysql
-  php vendor/bin/migraw init:pgsql
+  migraw init
+  migraw init:sqlite
+  migraw init:mysql
+  migraw init:pgsql
   
-  php vendor/bin/migraw make migration_name
-  php vendor/bin/migraw seed:make AdminSeeder
+  migraw make migration_name
+  migraw seed:make AdminSeeder
   
-  php vendor/bin/migraw migrate
-  php vendor/bin/migraw up
+  migraw migrate
+  migraw up
 
-  php vendor/bin/migraw rollback
-  php vendor/bin/migraw down
+  migraw rollback
+  migraw down
 
-  php vendor/bin/migraw seed
-  php vendor/bin/migraw seed AdminSeeder
-
-  php vendor/bin/migraw status
-  php vendor/bin/migraw reset
-  php vendor/bin/migraw fresh
+  migraw status
+  migraw reset
+  migraw fresh
 
 Commands:
   init              Create the default migraw.php config file
   make              Create a new migration file
   status            Show migration status
-  migrate, up       Run pending migrations
-  rollback, down    Rollback the last migration batch
+  migrate (up)      Run pending migrations
+  rollback (down)   Rollback the last migration batch
   reset             Rollback all executed migrations
   fresh             Reset and run all migrations again
-  seed              Run all seeders or a specific seeder
-  seed:make         Create a new seeder file
 
 Options:
   --dry-run, --pretend   Show SQL without executing it

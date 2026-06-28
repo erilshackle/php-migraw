@@ -3,50 +3,19 @@
 namespace Eril\Migraw\Sql;
 
 /**
- * SQL statement factory.
+ * Low-level SQL statement factory.
  *
- * Provides a lightweight and explicit API for building
- * common schema and data manipulation statements.
- *
- * Examples:
- *
- * Create table:
- *
- * ```php
- * Sql::create('users')
- *     ->field('id INT PRIMARY KEY')
- *     ->field('name VARCHAR(255)');
- * ```
- *
- * Alter table:
- *
- * ```php
- * Sql::alter('users')
- *     ->add('phone VARCHAR(50)');
- * ```
- *
- * Rename table:
- *
- * ```php
- * Sql::rename('users')
- *     ->to('customers');
- * ```
- *
- * Drop table:
- *
- * ```php
- * Sql::drop('users', true);
- * ```
+ * Sql is kept as a compatibility layer for users who prefer the older helper
+ * style. New migrations should usually use the helper methods available inside
+ * Migration: $this->create(), $this->alter(), $this->drop(), $this->rename().
  */
 final class Sql
 {
-
     /**
-     * Create a CREATE TABLE statement.
+     * Create a low-level CREATE TABLE statement.
      *
-     * @see CreateTable
      * @param string $table Table name.
-     * @param bool $ifNotExists Whether to add IF NOT EXISTS.
+     * @param bool $ifNotExists Whether to include IF NOT EXISTS.
      *
      * @return CreateTable
      */
@@ -62,7 +31,7 @@ final class Sql
     }
 
     /**
-     * Create an ALTER TABLE statement.
+     * Create a low-level ALTER TABLE statement.
      *
      * @param string $table Table name.
      *
@@ -74,7 +43,7 @@ final class Sql
     }
 
     /**
-     * Create a RENAME TABLE statement.
+     * Create a low-level RENAME TABLE statement.
      *
      * @param string $table Current table name.
      *
@@ -86,10 +55,10 @@ final class Sql
     }
 
     /**
-     * Create a DROP TABLE statement.
+     * Create a low-level DROP TABLE statement.
      *
      * @param string $table Table name.
-     * @param bool $ifExists Whether to add IF EXISTS.
+     * @param bool $ifExists Whether to include IF EXISTS.
      *
      * @return DropTable
      */
