@@ -1,25 +1,30 @@
 # Migraw
 
-SQL-first migrations for PHP. 
-Write SQL. Not magic.
+SQL-first migrations for PHP.
 
-Migraw is a lightweight migration tool focused on explicit SQL.
+**Write SQL. Not magic.**
 
-Write raw SQL when you want complete control, or use the optional SQL builder for common operations. No schema diffing, no introspection, no complex DSLs.
+Migraw is a lightweight migration tool that embraces SQL instead of hiding it.
+
+Write raw SQL when you need complete control, generate smart SQL templates to get started quickly, or use the optional schema builder for common table operations.
+
+---
 
 ## Features
 
-* SQL-first approach
-* Raw SQL migrations
-* Optional fluent SQL builder
-* MySQL, PostgreSQL and SQLite support
+* SQL-first migrations
+* Raw SQL support
+* Lightweight schema builder
+* Smart migration templates
+* MySQL, MariaDB, PostgreSQL and SQLite support
+* Driver-aware schema helpers
 * Migration batches
 * Rollback support
 * Dry-run mode
-* Migration integrity checks using checksums
-* CLI tooling
-* No ORM dependency
-* No framework dependency
+* Interactive CLI
+* PDO or callable connection
+* Framework agnostic
+* Zero runtime dependencies
 
 ---
 
@@ -33,20 +38,25 @@ composer require eril/migraw
 
 ## Getting Started
 
-Initialize the configuration file:
+Generate the default configuration:
 
 ```bash
 php vendor/bin/migraw init
 ```
-or
+
+or choose a specific driver:
+
 ```bash
-php vendor/bin/migraw init:mysql # mysql | pgsql | sqlite
+php vendor/bin/migraw init:mysql
+php vendor/bin/migraw init:pgsql
+php vendor/bin/migraw init:sqlite
 ```
 
-This will create:
+This creates:
 
-```txt
+```text
 migraw.php
+
 database/
 └── migrations/
 ```
@@ -55,76 +65,77 @@ database/
 
 ## Configuration
 
+Using a connection array:
+
 ```php
 <?php
 
 return [
 
-    /*
-    |--------------------------------------------------------------------------
-    | Migrations Path
-    |--------------------------------------------------------------------------
-    */
-
     'path' => 'database/migrations',
 
-    /*
-    |--------------------------------------------------------------------------
-    | Database Connection
-    |--------------------------------------------------------------------------
-    */
-
     'connection' => [
-        'driver' => $_ENV['DB_CONNECTION'] ?? 'mysql',
 
-        'host' => $_ENV['DB_HOST'] ?? '127.0.0.1',
-        'port' => $_ENV['DB_PORT'] ?? '3306',
-        'database' => $_ENV['DB_DATABASE'] ?? '',
-        'username' => $_ENV['DB_USERNAME'] ?? 'root',
-        'password' => $_ENV['DB_PASSWORD'] ?? '',
+        'driver' => 'mysql',
 
-        'charset' => $_ENV['DB_CHARSET'] ?? 'utf8mb4',
+        'host' => '127.0.0.1',
+        'port' => '3306',
+        'database' => 'example',
 
-        'sqlite_path' => $_ENV['DB_SQLITE_PATH'] ?? 'database/database.sqlite',
+        'username' => 'root',
+        'password' => '',
+
+        'charset' => 'utf8mb4',
+
     ],
 
 ];
 ```
 
-You may also provide a PDO instance or callable:
+Or provide a PDO instance:
 
 ```php
 return [
 
     'path' => 'database/migrations',
 
-    'connection' => function (): PDO {
-        return App\Database::connection();
-    },
+    'connection' => new PDO(...),
+
+];
+```
+
+Or a callable:
+
+```php
+return [
+
+    'path' => 'database/migrations',
+
+    'connection' => static fn (): PDO => Database::connection(),
 
 ];
 ```
 
 ---
 
-## Creating Migrations
+## Creating a Migration
 
-Create a migration:
+Create an empty migration:
 
 ```bash
-vendor/bin/migraw make create_users_table
+php vendor/bin/migraw make create_users_table
 ```
 
-Generated file:
+Example:
 
-```txt
+```text
 database/migrations/
-└── 2026_06_17_230000_create_users_table.php
+└── 20260627143000_create_users_table.php
 ```
 
 ---
 
-## Raw SQL Migrations
+# Raw SQL
 
 ```php
 <?php
@@ -138,8 +149,7 @@ return new class extends Migration
         return <<<SQL
         CREATE TABLE users (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(120) NOT NULL,
-            email VARCHAR(160) NOT NULL UNIQUE
+            name VARCHAR(255) NOT NULL
         );
         SQL;
     }
@@ -155,28 +165,52 @@ return new class extends Migration
 
 ---
 
-## Fluent SQL Builder
+## Smart Templates
+
+Migraw can generate SQL templates based on the migration name.
+
+Example:
+
+```bash
+php vendor/bin/migraw make create_users_table -t
+```
+
+generates:
+```sql
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NULL,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+---
+
+# Schema Builder
 
 ```php
 <?php
 
 use Eril\Migraw\Migration;
-use Eril\Migraw\Sql\Sql;
 use Eril\Migraw\Sql\SqlStatement;
 
 return new class extends Migration
 {
     public function up(): SqlStatement
     {
-        return Sql::create('users')
-            ->field('id INT AUTO_INCREMENT PRIMARY KEY')
-            ->field('name VARCHAR(120) NOT NULL')
-            ->field('email VARCHAR(160) NOT NULL UNIQUE');
+        return $this->create('users')
+            ->id()
+            ->column('name VARCHAR(255) NOT NULL')
+            ->column('email VARCHAR(180) NOT NULL UNIQUE')
+            ->column('password_hash VARCHAR(255) NOT NULL')
+            ->timestamps();
     }
 
     public function down(): SqlStatement
     {
-        return Sql::drop('users');
+        $this->drop('users')
+            ->ifExists();
     }
 };
 ```
@@ -190,16 +224,14 @@ public function up(): array
 {
     return [
 
-        Sql::create('roles')
-            ->field('id INT AUTO_INCREMENT PRIMARY KEY')
-            ->field('name VARCHAR(80) NOT NULL UNIQUE'),
+        $this->create('roles')
+            ->id()
+            ->column('name VARCHAR(80) NOT NULL UNIQUE'),
 
-        Sql::create('users')
-            ->field('id INT AUTO_INCREMENT PRIMARY KEY')
-            ->field('role_id INT')
-            ->constraint(
-                'FOREIGN KEY (role_id) REFERENCES roles(id)'
-            ),
+        $this->create('users')
+            ->id()
+            ->column('role_id INT NOT NULL')
+            ->foreign('role_id', 'roles'),
 
     ];
 }
@@ -209,36 +241,42 @@ public function up(): array
 
 ## Running Migrations
 
-Run all pending migrations:
+Run pending migrations:
 
 ```bash
-vendor/bin/migraw migrate
-vendor/bin/migraw up
+php vendor/bin/migraw
+```
+
+or
+
+```bash
+php vendor/bin/migraw migrate
+php vendor/bin/migraw up
 ```
 
 Rollback the last batch:
 
 ```bash
-vendor/bin/migraw rollback
-vendor/bin/migraw down
+php vendor/bin/migraw rollback
+php vendor/bin/migraw down
 ```
 
-Rollback all executed migrations:
+Rollback every executed migration:
 
 ```bash
-vendor/bin/migraw reset
+php vendor/bin/migraw reset
 ```
 
-Reset and re-run all migrations:
+Rollback everything and migrate again:
 
 ```bash
-vendor/bin/migraw fresh
+php vendor/bin/migraw fresh
 ```
 
-Check migration status:
+Show migration status:
 
 ```bash
-vendor/bin/migraw status
+php vendor/bin/migraw status
 ```
 
 ---
@@ -248,102 +286,61 @@ vendor/bin/migraw status
 Preview SQL without executing it:
 
 ```bash
-vendor/bin/migraw migrate --dry-run
+php vendor/bin/migraw migrate --dry-run
 ```
 
 or
 
 ```bash
-vendor/bin/migraw migrate --pretend
-```
-
-Example:
-
-```sql
-CREATE TABLE users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(120) NOT NULL
-);
+php vendor/bin/migraw migrate --pretend
 ```
 
 ---
 
-## Migration Integrity
+## Migration Philosophy
 
-When a migration is executed, Migraw stores a checksum of the migration file.
+Treat migrations as immutable.
 
-If the file is modified afterwards, rollback operations are blocked:
+Instead of editing an existing migration:
 
-```txt
-Migration '2026_06_09_120000_create_users_table'
-was modified after execution.
+```text
+20260601_create_users_table.php
 ```
 
-Status output:
+create a new one:
 
-```txt
-[ran]       2026_06_09_120000_create_users_table
-[modified]  2026_06_09_130000_add_email_to_users
-[pending]   2026_06_09_140000_create_posts_table
+```text
+20260601_create_users_table.php
+20260610_add_phone_to_users.php
+20260612_create_roles_table.php
 ```
 
-To ignore checksum validation:
-
-```bash
-vendor/bin/migraw rollback --force
-```
-
----
-
-## Best Practices
-
-Once a migration has been executed:
-
-**Do not modify it.**
-
-Instead, create a new migration.
-
-Good:
-
-```txt
-2026_06_09_create_users_table
-2026_06_10_add_phone_to_users
-```
-
-Avoid:
-
-```txt
-Editing old migration files after deployment
-```
+This keeps every environment synchronized and preserves migration history.
 
 ---
 
 ## Philosophy
 
-Migraw follows a simple principle:
+Migraw is built around a simple idea:
 
 > SQL is already a schema language.
 
-Instead of hiding SQL behind a large abstraction layer, Migraw embraces it.
+Instead of replacing SQL with a complex abstraction, Migraw keeps SQL visible and explicit.
 
-You can write raw SQL directly or use a lightweight builder when convenient.
+You choose the level of abstraction that best fits your project:
 
-No schema diffing.
+- Raw SQL
+- Smart SQL templates
+- Lightweight schema builder
 
-No database introspection.
-
-No ORM dependency.
-
-No framework dependency.
-
-Just migrations.
+Nothing more.
 
 ---
 
 ## Requirements
 
 * PHP 8.1+
-* PDO
+* PDO extension
 
 Supported databases:
 
@@ -355,8 +352,6 @@ Supported databases:
 ---
 
 ## Testing
-
-Run the test suite:
 
 ```bash
 composer test

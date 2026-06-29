@@ -17,11 +17,15 @@
  *  reset      Rollback all executed migrations
  *  fresh      Safe refresh: reset then migrate
  *  make       Create a new migration file
+ * 
+ * example:
+ *  php vendor/bin/migraw init
  *
  * @author Eril TS Carvalho
  * @copyright Copyright (c) 2026 Eril TS Carvalho
  * @license MIT
- * @version v0.1
+ * @version 0.1.0
+ * 
  *
  * @link https://github.com/erilshackle/php-migraw
  *
@@ -33,13 +37,25 @@ use Eril\Migraw\MigrationCreator;
 use Eril\Migraw\MigrationRepository;
 use Eril\Migraw\Migrator;
 
-require_once 'vendor/autoload.php';
+$autoloadFiles = [
+    __DIR__ . '/../vendor/autoload.php',
+    __DIR__ . '/../../../autoload.php',
+    getcwd() . '/vendor/autoload.php',
+];
+
+foreach ($autoloadFiles as $autoload) {
+    if (file_exists($autoload)) {
+        require_once $autoload;
+        break;
+    }
+}
 
 $args = $_SERVER['argv'];
 
 $command = $args[1] ?? null;
 
 $dryRun = in_array('--dry-run', $args, true) || in_array('--pretend', $args, true);
+$template = in_array('--template', $args, true) || in_array('-t', $args, true);
 
 $force = in_array('--force', $args, true);
 
@@ -80,6 +96,7 @@ try {
     }
 
     $pdo = resolvePdo($config);
+    $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
 
     $path = resolvePath($config['path'] ?? 'database/migrations');
     $table = $config['table'] ?? 'migrations';
@@ -106,7 +123,7 @@ try {
         'status' => status($migrator),
         'reset' => resetMigrations($migrator, $dryRun),
         'fresh' => fresh($migrator, $dryRun),
-        'make' => make($path, $args[2] ?? null),
+        'make' => make($path, $args[2] ?? null, $pdo, $template),
         'help', '--help', '-h' => help(),
         default => unknownCommand($command),
     };
@@ -172,7 +189,9 @@ function confirmAndMigrate(Migrator $migrator): void
         return;
     }
 
-    echo "Pending migrations:\n\n";
+    $count = count($pending);
+
+    echo "Pending migrations ($count):\n\n";
 
     foreach ($pending as $migration) {
         echo Console::gray("  - {$migration}\n");
@@ -252,7 +271,7 @@ function status(Migrator $migrator): void
         $status = match ($row['status']) {
             'ran' => Console::green('[ran]'),
             'pending' => Console::yellow('[pending]'),
-            'modified' => Console::red('[modified]'),
+            'modified' => Console::cyan('[modified]'),
             default => "[{$row['status']}]",
         };
 
@@ -264,7 +283,7 @@ function status(Migrator $migrator): void
     }
 }
 
-function make(string $path, ?string $name): void
+function make(string $path, ?string $name, \PDO $pdo, bool $template = false): void
 {
     if (! $name) {
         echo "Migration name is required.\n";
@@ -272,11 +291,17 @@ function make(string $path, ?string $name): void
         exit(1);
     }
 
-    $creator = new MigrationCreator($path);
-    $file = str_replace((string)getcwd(), '', $creator->create($name));
+    $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
 
-    echo "Created migration: {$file}\n";
+    $creator = new MigrationCreator($path, $driver);
+    $file = $creator->create($name, $template);
+    $file = str_replace((string)getcwd(), '', $file);
+
+    // echo "Created migration: {$file}\n";
+
+    echo Console::green("Created migration: ") . "$file\n";
 }
+
 
 function resolvePdo(array $config): \PDO
 {
@@ -374,10 +399,11 @@ function initConfig(bool $forced, string $driver = 'mysql'): void
         mkdir(basePath('database/migrations'), 0775, true);
     }
 
+
     echo Console::green("Created config: migraw.php\n");
 
     if (! is_dir(basePath('database/migrations'))) {
-        mkdir(...);
+        mkdir(basePath('database/migrations'), 0775, true);
 
         echo Console::green(
             "Created directory: database/migrations\n"
@@ -528,35 +554,37 @@ function help(): void
 Migraw
 
 Usage:
-  php vendor/bin/migraw init
-  php vendor/bin/migraw init:sqlite
-  php vendor/bin/migraw init:mysql
-  php vendor/bin/migraw init:pgsql
+  migraw init
+  migraw init:sqlite
+  migraw init:mysql
+  migraw init:pgsql
   
-  php vendor/bin/migraw make migration_name
+  migraw make migration_name
   
-  php vendor/bin/migraw migrate
-  php vendor/bin/migraw up
+  migraw migrate
+  migraw up
 
-  php vendor/bin/migraw rollback
-  php vendor/bin/migraw down
+  migraw rollback
+  migraw down
 
-  php vendor/bin/migraw status
-  php vendor/bin/migraw reset
-  php vendor/bin/migraw fresh
+  migraw status
+  migraw reset
+  migraw fresh
 
 Commands:
-  init       Create the default migraw.php config file
-  status     Show migration status
-  migrate    Run pending migrations
-  rollback   Rollback the last migration batch
-  reset      Rollback all executed migrations
-  fresh      Reset and run all migrations again
-  make       Create a new migration file
+  init              Create the default migraw.php config file
+  make              Create a new migration file []
+  status            Show migration status
+  migrate (up)      Run pending migrations
+  rollback (down)   Rollback the last migration batch
+  reset             Rollback all executed migrations
+  fresh             Reset and run all migrations again
 
 Options:
   --dry-run, --pretend   Show SQL without executing it
-  --force                Force execution, ignoring safety checks.
+  --force                Overwrite existing configuration when using init
+  --template, --t        Generate a prefilled migration based on the migration name.
+  
 
 TXT;
 }

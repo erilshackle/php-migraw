@@ -7,28 +7,53 @@ use PDO;
 use RuntimeException;
 use Throwable;
 
+/**
+ * Runs, rolls back and reports SQL-first migrations.
+ */
 class Migrator
 {
+    /**
+     * PDO driver name.
+     */
+    protected string $driver;
 
+    /**
+     * Whether SQL should be collected instead of executed.
+     */
     protected bool $pretending = false;
+
+    /**
+     * Force flag reserved for safety checks handled by higher-level commands.
+     */
     protected bool $force = false;
 
+    /**
+     * @var string[] SQL collected during pretend/dry-run mode.
+     */
     protected array $pretendedSql = [];
 
+    /**
+     * @param PDO $pdo Database connection.
+     * @param string $path Migration directory path.
+     * @param MigrationRepository|null $repository Migration repository.
+     */
     public function __construct(
         protected PDO $pdo,
         protected string $path,
         protected ?MigrationRepository $repository = null
     ) {
         $this->repository ??= new MigrationRepository($pdo);
+        $this->driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
     }
 
-    protected function checksum(
-        string $file
-    ): string {
-        return hash_file('sha256', $file);
-    }
-
+    /**
+     * Enable force mode.
+     *
+     * Currently Migraw does not block rollback based on checksums. The flag is
+     * kept for CLI-level safety behavior and future extension.
+     *
+     * @return static
+     */
     public function force(): static
     {
         $this->force = true;
@@ -36,6 +61,11 @@ class Migrator
         return $this;
     }
 
+    /**
+     * Run all pending migrations.
+     *
+     * @return string[] Executed migration names.
+     */
     public function migrate(): array
     {
         $files = $this->getMigrationFiles();
@@ -68,6 +98,11 @@ class Migrator
         return $executed;
     }
 
+    /**
+     * Roll back the latest migration batch.
+     *
+     * @return string[] Rolled back migration names.
+     */
     public function rollback(): array
     {
         $files = $this->getMigrationFiles();
@@ -84,11 +119,6 @@ class Migrator
                 throw new RuntimeException("Migration file not found: {$migrationName}");
             }
 
-            $this->ensureMigrationIntegrity(
-                $migrationName,
-                $files[$migrationName]
-            );
-
             $migration = $this->loadMigration($files[$migrationName]);
 
             $this->runSql($migration->down());
@@ -103,6 +133,15 @@ class Migrator
         return $rolledBack;
     }
 
+    /**
+     * Return status information for all migration files.
+     *
+     * A migration is marked as modified when its stored checksum differs from
+     * the current file checksum. This is diagnostic only and does not block
+     * rollback.
+     *
+     * @return array<int,array{migration:string,status:string}>
+     */
     public function status(): array
     {
         $files = $this->getMigrationFiles();
@@ -111,15 +150,34 @@ class Migrator
         $status = [];
 
         foreach ($files as $migrationName => $file) {
+            if (! in_array($migrationName, $ran, true)) {
+                $status[] = [
+                    'migration' => $migrationName,
+                    'status' => 'pending',
+                ];
+
+                continue;
+            }
+
+            $stored = $this->repository->checksumOf($migrationName);
+            $current = $this->checksum($file);
+
             $status[] = [
                 'migration' => $migrationName,
-                'status' => in_array($migrationName, $ran, true) ? 'ran' : 'pending',
+                'status' => $stored !== null && $stored !== $current
+                    ? 'modified'
+                    : 'ran',
             ];
         }
 
         return $status;
     }
 
+    /**
+     * Return pending migration names.
+     *
+     * @return string[]
+     */
     public function pending(): array
     {
         $files = $this->getMigrationFiles();
@@ -128,7 +186,7 @@ class Migrator
         $pending = [];
 
         foreach ($files as $migrationName => $file) {
-            if (!in_array($migrationName, $ran, true)) {
+            if (! in_array($migrationName, $ran, true)) {
                 $pending[] = $migrationName;
             }
         }
@@ -136,8 +194,11 @@ class Migrator
         return $pending;
     }
 
-
-
+    /**
+     * Enable dry-run mode.
+     *
+     * @return static
+     */
     public function pretend(): static
     {
         $this->pretending = true;
@@ -146,11 +207,21 @@ class Migrator
         return $this;
     }
 
+    /**
+     * Get SQL collected during dry-run mode.
+     *
+     * @return string[]
+     */
     public function getPretendedSql(): array
     {
         return $this->pretendedSql;
     }
 
+    /**
+     * Roll back all executed migrations.
+     *
+     * @return string[] Rolled back migration names.
+     */
     public function reset(): array
     {
         $files = $this->getMigrationFiles();
@@ -163,11 +234,6 @@ class Migrator
                 throw new RuntimeException("Migration file not found: {$migrationName}");
             }
 
-            $this->ensureMigrationIntegrity(
-                $migrationName,
-                $files[$migrationName]
-            );
-
             $migration = $this->loadMigration($files[$migrationName]);
 
             $this->runSql($migration->down());
@@ -182,17 +248,15 @@ class Migrator
         return $rolledBack;
     }
 
+    /**
+     * Safely recreate the schema by resetting managed migrations and running
+     * them again.
+     *
+     * This does not drop unknown database tables.
+     *
+     * @return array{rolled_back:string[],migrated:string[]}
+     */
     public function fresh(): array
-    {
-        return $this->refresh();
-        // $this->dropAllTables();
-
-        // return [
-        //     'migrated' => $this->migrate(),
-        // ];
-    }
-
-    public function refresh(): array
     {
         return [
             'rolled_back' => $this->reset(),
@@ -200,69 +264,11 @@ class Migrator
         ];
     }
 
-    protected function dropAllTables(): void
-    {
-        match ($this->driver()) {
-            'sqlite' => $this->dropAllSqliteTables(),
-            'pgsql' => $this->dropAllPostgresTables(),
-            default => $this->dropAllMysqlTables(),
-        };
-    }
-
-    protected function dropAllMysqlTables(): void
-    {
-        $database = $this->pdo->query('SELECT DATABASE()')->fetchColumn();
-
-        $stmt = $this->pdo->prepare("
-        SELECT table_name
-        FROM information_schema.tables
-        WHERE table_schema = :database
-    ");
-
-        $stmt->execute(['database' => $database]);
-
-        $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-        if ($tables === []) {
-            return;
-        }
-
-        $this->pdo->exec('SET FOREIGN_KEY_CHECKS=0');
-
-        foreach ($tables as $table) {
-            $this->pdo->exec("DROP TABLE IF EXISTS `{$table}`");
-        }
-
-        $this->pdo->exec('SET FOREIGN_KEY_CHECKS=1');
-    }
-
-    protected function dropAllSqliteTables(): void
-    {
-        $tables = $this->pdo
-            ->query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
-            ->fetchAll(PDO::FETCH_COLUMN);
-
-        foreach ($tables as $table) {
-            $this->pdo->exec("DROP TABLE IF EXISTS {$table}");
-        }
-    }
-
-    protected function dropAllPostgresTables(): void
-    {
-        $tables = $this->pdo
-            ->query("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
-            ->fetchAll(PDO::FETCH_COLUMN);
-
-        foreach ($tables as $table) {
-            $this->pdo->exec('DROP TABLE IF EXISTS "' . $table . '" CASCADE');
-        }
-    }
-
-    protected function driver(): string
-    {
-        return $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
-    }
-
+    /**
+     * Return migration files mapped by migration name.
+     *
+     * @return array<string,string>
+     */
     protected function getMigrationFiles(): array
     {
         if (! is_dir($this->path)) {
@@ -283,22 +289,13 @@ class Migrator
         return $mapped;
     }
 
-    protected function ensureMigrationIntegrity(string $migrationName, string $file): void
-    {
-        if ($this->force) {
-            return;
-        }
-
-        $stored = $this->repository->checksumOf($migrationName);
-        $current = $this->checksum($file);
-
-        if ($stored !== null && $stored !== $current) {
-            throw new RuntimeException(
-                "Migration '{$migrationName}' was modified after execution. Use --force to rollback anyway."
-            );
-        }
-    }
-
+    /**
+     * Load a migration file.
+     *
+     * @param string $file Migration file path.
+     *
+     * @return Migration
+     */
     protected function loadMigration(string $file): Migration
     {
         $migration = require $file;
@@ -310,25 +307,71 @@ class Migrator
         return $migration;
     }
 
-
+    /**
+     * Determine whether schema transactions are reliable for the current driver.
+     *
+     * @return bool
+     */
     protected function supportsSchemaTransactions(): bool
     {
-        return match ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME)) {
+        return match ($this->driver) {
             'pgsql', 'sqlite' => true,
             default => false,
         };
     }
 
     /**
-     * Summary of runSql
-     * @param string|array<string|SqlStatement>|SqlStatement $sql
+     * Normalize a migration return value into SQL strings.
+     *
+     * @param string|array<int,string|SqlStatement>|SqlStatement $sql
+     *
+     * @return string[]
+     */
+    protected function normalizeStatements(string|SqlStatement|array $sql): array
+    {
+        $items = is_array($sql)
+            ? $sql
+            : [$sql];
+
+        $result = [];
+
+        foreach ($items as $item) {
+            if ($item instanceof SqlStatement) {
+                $result[] = $item->toSql($this->driver);
+                continue;
+            }
+
+            $result[] = (string) $item;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Execute statements directly.
+     *
+     * @param string|array<int,string|SqlStatement>|SqlStatement $sql
+     *
+     * @return void
+     */
+    public function runStatements(string|array|SqlStatement $sql): void
+    {
+        $this->runSql($sql);
+    }
+
+    /**
+     * Execute SQL statements or collect them during dry-run mode.
+     *
+     * @param string|array<int,string|SqlStatement>|SqlStatement $sql
+     *
      * @return void
      */
     protected function runSql(string|array|SqlStatement $sql): void
     {
-        $statements = is_array($sql) ? $sql : [$sql];
+        $statements = $this->normalizeStatements($sql);
 
-        $useTransaction = ! $this->pretending && $this->supportsSchemaTransactions();
+        $useTransaction = ! $this->pretending
+            && $this->supportsSchemaTransactions();
 
         try {
             if ($useTransaction) {
@@ -336,10 +379,6 @@ class Migrator
             }
 
             foreach ($statements as $statement) {
-                if ($statement instanceof SqlStatement) {
-                    $statement = $statement->toSql();
-                }
-
                 $statement = trim($statement);
 
                 if ($statement === '') {
@@ -364,5 +403,17 @@ class Migrator
 
             throw $e;
         }
+    }
+
+    /**
+     * Compute the checksum for a migration file.
+     *
+     * @param string $file File path.
+     *
+     * @return string
+     */
+    protected function checksum(string $file): string
+    {
+        return hash_file('sha256', $file);
     }
 }
