@@ -15,19 +15,12 @@ final class Sql
      * Create a low-level CREATE TABLE statement.
      *
      * @param string $table Table name.
-     * @param bool $ifNotExists Whether to include IF NOT EXISTS.
      *
      * @return CreateTable
      */
-    public static function create(string $table, bool $ifNotExists = false): CreateTable
+    public static function create(string $table): CreateTable
     {
-        $statement = new CreateTable($table);
-
-        if ($ifNotExists) {
-            $statement->ifNotExists();
-        }
-
-        return $statement;
+        return new CreateTable($table);
     }
 
     /**
@@ -58,18 +51,11 @@ final class Sql
      * Create a low-level DROP TABLE statement.
      *
      * @param string $table Table name.
-     * @param bool $ifExists Whether to include IF EXISTS.
      *
      * @return DropTable
      */
-    public static function drop(string $table, bool $ifExists = false): DropTable
+    public static function drop(string $table): DropTable
     {
-        $statement = new DropTable($table);
-
-        if ($ifExists) {
-            $statement->ifExists();
-        }
-
-        return $statement;
+        return new DropTable($table);
     }
 }

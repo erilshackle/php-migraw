@@ -55,6 +55,7 @@ $args = $_SERVER['argv'];
 $command = $args[1] ?? null;
 
 $dryRun = in_array('--dry-run', $args, true) || in_array('--pretend', $args, true);
+$template = in_array('--template', $args, true) || in_array('-t', $args, true);
 
 $force = in_array('--force', $args, true);
 
@@ -95,6 +96,7 @@ try {
     }
 
     $pdo = resolvePdo($config);
+    $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
 
     $path = resolvePath($config['path'] ?? 'database/migrations');
     $table = $config['table'] ?? 'migrations';
@@ -121,7 +123,7 @@ try {
         'status' => status($migrator),
         'reset' => resetMigrations($migrator, $dryRun),
         'fresh' => fresh($migrator, $dryRun),
-        'make' => make($path, $args[2] ?? null),
+        'make' => make($path, $args[2] ?? null, $pdo, $template),
         'help', '--help', '-h' => help(),
         default => unknownCommand($command),
     };
@@ -281,7 +283,7 @@ function status(Migrator $migrator): void
     }
 }
 
-function make(string $path, ?string $name): void
+function make(string $path, ?string $name, \PDO $pdo, bool $template = false): void
 {
     if (! $name) {
         echo "Migration name is required.\n";
@@ -289,11 +291,12 @@ function make(string $path, ?string $name): void
         exit(1);
     }
 
-    $creator = new MigrationCreator($path);
-    $file = str_replace((string)getcwd(), '', $creator->create($name));
-    // $file = $creator->create($name);
+    $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
 
-    echo "Created migration: {$file}\n";
+    $creator = new MigrationCreator($path, $driver);
+    $file = $creator->create($name, $template);
+
+    echo Console::green("Created migration: {$file}\n");
 }
 
 
@@ -554,7 +557,6 @@ Usage:
   migraw init:pgsql
   
   migraw make migration_name
-  migraw seed:make AdminSeeder
   
   migraw migrate
   migraw up
@@ -568,7 +570,7 @@ Usage:
 
 Commands:
   init              Create the default migraw.php config file
-  make              Create a new migration file
+  make              Create a new migration file []
   status            Show migration status
   migrate (up)      Run pending migrations
   rollback (down)   Rollback the last migration batch
@@ -578,6 +580,8 @@ Commands:
 Options:
   --dry-run, --pretend   Show SQL without executing it
   --force                Overwrite existing configuration when using init
+  --template, --t        Generate a prefilled migration based on the migration name.
+  
 
 TXT;
 }

@@ -61,13 +61,12 @@ abstract class Migration
      * Create a DROP TABLE schema statement.
      *
      * @param string $table Table name.
-     * @param bool $ifExists Whether to include IF EXISTS.
      *
      * @return DropTable
      */
-    final protected function drop(string $table, bool $ifExists = false): DropTable
+    final protected function drop(string $table): DropTable
     {
-        return Schema::drop($table, $ifExists);
+        return Schema::drop($table);
     }
 
     /**

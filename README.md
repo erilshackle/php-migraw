@@ -6,7 +6,7 @@ SQL-first migrations for PHP.
 
 Migraw is a lightweight migration tool that embraces SQL instead of hiding it.
 
-Write raw SQL when you need complete control, or use the optional schema builder for common table operations. No ORM, no schema diffing, no database introspection.
+Write raw SQL when you need complete control, generate smart SQL templates to get started quickly, or use the optional schema builder for common table operations.
 
 ---
 
@@ -15,7 +15,9 @@ Write raw SQL when you need complete control, or use the optional schema builder
 * SQL-first migrations
 * Raw SQL support
 * Lightweight schema builder
+* Smart migration templates
 * MySQL, MariaDB, PostgreSQL and SQLite support
+* Driver-aware schema helpers
 * Migration batches
 * Rollback support
 * Dry-run mode
@@ -118,6 +120,8 @@ return [
 
 ## Creating a Migration
 
+Create an empty migration:
+
 ```bash
 php vendor/bin/migraw make create_users_table
 ```
@@ -143,14 +147,42 @@ return new class extends Migration
     public function up(): string
     {
         return <<<SQL
-        CREATE TABLE user 
+        CREATE TABLE users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL
+        );
+        SQL;
     }
 
     public function down(): string
     {
-        return "DROP TABLE users;";
+        return <<<SQL
+        DROP TABLE users;
+        SQL;
     }
 };
+```
+
+---
+
+## Smart Templates
+
+Migraw can generate SQL templates based on the migration name.
+
+Example:
+
+```bash
+php vendor/bin/migraw make create_users_table -t
+```
+
+generates:
+```sql
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NULL,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
 ```
 
 ---
@@ -169,15 +201,16 @@ return new class extends Migration
     {
         return $this->create('users')
             ->id()
-            ->column('name')
-            ->column('email', 'VARCHAR(180) NOT NULL UNIQUE')
-            ->column('password_hash', 'VARCHAR(255) NOT NULL')
+            ->column('name VARCHAR(255) NOT NULL')
+            ->column('email VARCHAR(180) NOT NULL UNIQUE')
+            ->column('password_hash VARCHAR(255) NOT NULL')
             ->timestamps();
     }
 
     public function down(): SqlStatement
     {
-        return $this->drop('users', true);
+        $this->drop('users')
+            ->ifExists();
     }
 };
 ```
@@ -193,11 +226,11 @@ public function up(): array
 
         $this->create('roles')
             ->id()
-            ->column('name', 'VARCHAR(80) NOT NULL UNIQUE'),
+            ->column('name VARCHAR(80) NOT NULL UNIQUE'),
 
         $this->create('users')
             ->id()
-            ->column('role_id', 'INT')
+            ->column('role_id INT NOT NULL')
             ->foreign('role_id', 'roles'),
 
     ];
@@ -296,8 +329,9 @@ Instead of replacing SQL with a complex abstraction, Migraw keeps SQL visible an
 
 You choose the level of abstraction that best fits your project:
 
-* Raw SQL
-* Lightweight schema builder
+- Raw SQL
+- Smart SQL templates
+- Lightweight schema builder
 
 Nothing more.
 
