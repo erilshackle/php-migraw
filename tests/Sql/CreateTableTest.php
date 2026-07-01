@@ -10,9 +10,9 @@ class CreateTableTest extends TestCase
     public function test_it_generates_create_table_sql(): void
     {
         $sql = Sql::create('users')
-            ->field('id INT AUTO_INCREMENT PRIMARY KEY')
-            ->field('name VARCHAR(255) NOT NULL')
-            ->field('email VARCHAR(255) UNIQUE');
+            ->column('id INT AUTO_INCREMENT PRIMARY KEY')
+            ->column('name VARCHAR(255) NOT NULL')
+            ->column('email VARCHAR(255) UNIQUE');
 
         $this->assertSame(
             "CREATE TABLE users (\n    id INT AUTO_INCREMENT PRIMARY KEY,\n    name VARCHAR(255) NOT NULL,\n    email VARCHAR(255) UNIQUE\n);",
@@ -24,7 +24,7 @@ class CreateTableTest extends TestCase
     {
         $sql = Sql::create('users')
             ->ifNotExists()
-            ->field('id INT PRIMARY KEY');
+            ->column('id INT PRIMARY KEY');
 
         $this->assertSame(
             "CREATE TABLE IF NOT EXISTS users (\n    id INT PRIMARY KEY\n);",
@@ -35,8 +35,8 @@ class CreateTableTest extends TestCase
     public function test_it_adds_constraints(): void
     {
         $sql = Sql::create('posts')
-            ->field('id INT AUTO_INCREMENT PRIMARY KEY')
-            ->field('user_id INT NOT NULL')
+            ->column('id INT AUTO_INCREMENT PRIMARY KEY')
+            ->column('user_id INT NOT NULL')
             ->constraint('FOREIGN KEY (user_id) REFERENCES users(id)');
 
         $this->assertSame(

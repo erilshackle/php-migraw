@@ -170,14 +170,14 @@ class MigratorTest extends TestCase
     return new class extends Migration {
         public function up(): string|array|SqlStatement
         {
-            return Sql::create('users')
-                ->field('id INTEGER PRIMARY KEY AUTOINCREMENT')
-                ->field('name TEXT NOT NULL');
+            return $this->create('users')
+                ->column('id INTEGER PRIMARY KEY AUTOINCREMENT')
+                ->column('name TEXT NOT NULL');
         }
 
         public function down(): string|array|SqlStatement
         {
-            return Sql::drop('users');
+            return $this->drop('users');
         }
     };
     PHP);
