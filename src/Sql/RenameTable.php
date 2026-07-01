@@ -2,14 +2,18 @@
 
 namespace Eril\Migraw\Sql;
 
+use Eril\Migraw\Sql\SqlStatement;
 use InvalidArgumentException;
 use RuntimeException;
 
 /**
- * Low-level RENAME TABLE SQL helper.
+ * RENAME TABLE statement builder.
  */
 class RenameTable implements SqlStatement
 {
+    /**
+     * New table name.
+     */
     protected ?string $newName = null;
 
     /**

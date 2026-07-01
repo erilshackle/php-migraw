@@ -2,13 +2,17 @@
 
 namespace Eril\Migraw\Sql;
 
+use Eril\Migraw\Sql\SqlStatement;
 use InvalidArgumentException;
 
 /**
- * Low-level DROP TABLE SQL helper.
+ * DROP TABLE statement builder.
  */
 class DropTable implements SqlStatement
 {
+    /**
+     * Whether to include IF EXISTS.
+     */
     protected bool $ifExists = false;
 
     /**
@@ -23,7 +27,7 @@ class DropTable implements SqlStatement
     }
 
     /**
-     * Add IF EXISTS.
+     * Add IF EXISTS to the DROP TABLE statement.
      *
      * @return static
      */

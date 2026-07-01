@@ -2,11 +2,10 @@
 
 namespace Eril\Migraw;
 
-use Eril\Migraw\Schema\AlterTable;
-use Eril\Migraw\Schema\CreateTable;
-use Eril\Migraw\Schema\DropTable;
-use Eril\Migraw\Schema\RenameTable;
-use Eril\Migraw\Schema\Schema;
+use Eril\Migraw\Sql\AlterTable;
+use Eril\Migraw\Sql\CreateTable;
+use Eril\Migraw\Sql\DropTable;
+use Eril\Migraw\Sql\RenameTable;
 use Eril\Migraw\Sql\SqlStatement;
 
 /**
@@ -41,7 +40,7 @@ abstract class Migration
      */
     final protected function create(string $table): CreateTable
     {
-        return Schema::create($table);
+        return new CreateTable($table);
     }
 
     /**
@@ -53,7 +52,7 @@ abstract class Migration
      */
     final protected function alter(string $table): AlterTable
     {
-        return Schema::alter($table);
+        return new AlterTable($table);
     }
 
     /**
@@ -65,7 +64,7 @@ abstract class Migration
      */
     final protected function drop(string $table): DropTable
     {
-        return Schema::drop($table);
+        return new DropTable($table);
     }
 
     /**
@@ -77,54 +76,6 @@ abstract class Migration
      */
     final protected function rename(string $table): RenameTable
     {
-        return Schema::rename($table);
-    }
-
-    /**
-     * Backwards-compatible alias for create().
-     *
-     * @param string $table Table name.
-     *
-     * @return CreateTable
-     */
-    final protected function createTable(string $table): CreateTable
-    {
-        return $this->create($table);
-    }
-
-    /**
-     * Backwards-compatible alias for alter().
-     *
-     * @param string $table Table name.
-     *
-     * @return AlterTable
-     */
-    final protected function alterTable(string $table): AlterTable
-    {
-        return $this->alter($table);
-    }
-
-    /**
-     * Backwards-compatible alias for drop().
-     *
-     * @param string $table Table name.
-     *
-     * @return DropTable
-     */
-    final protected function dropTable(string $table): DropTable
-    {
-        return $this->drop($table);
-    }
-
-    /**
-     * Backwards-compatible alias for rename().
-     *
-     * @param string $table Current table name.
-     *
-     * @return RenameTable
-     */
-    final protected function renameTable(string $table): RenameTable
-    {
-        return $this->rename($table);
+        return new RenameTable($table);
     }
 }

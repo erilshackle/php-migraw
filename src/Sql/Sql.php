@@ -3,16 +3,15 @@
 namespace Eril\Migraw\Sql;
 
 /**
- * Low-level SQL statement factory.
+ * Lightweight schema statement factory.
  *
- * Sql is kept as a compatibility layer for users who prefer the older helper
- * style. New migrations should usually use the helper methods available inside
- * Migration: $this->create(), $this->alter(), $this->drop(), $this->rename().
+ * Sql provides the preferred fluent API used by Migration helper methods.
+ * @deprecated v0.1 
  */
 final class Sql
 {
     /**
-     * Create a low-level CREATE TABLE statement.
+     * Create a CREATE TABLE statement.
      *
      * @param string $table Table name.
      *
@@ -24,7 +23,7 @@ final class Sql
     }
 
     /**
-     * Create a low-level ALTER TABLE statement.
+     * Create an ALTER TABLE statement.
      *
      * @param string $table Table name.
      *
@@ -36,19 +35,7 @@ final class Sql
     }
 
     /**
-     * Create a low-level RENAME TABLE statement.
-     *
-     * @param string $table Current table name.
-     *
-     * @return RenameTable
-     */
-    public static function rename(string $table): RenameTable
-    {
-        return new RenameTable($table);
-    }
-
-    /**
-     * Create a low-level DROP TABLE statement.
+     * Create a DROP TABLE statement.
      *
      * @param string $table Table name.
      *
@@ -57,5 +44,17 @@ final class Sql
     public static function drop(string $table): DropTable
     {
         return new DropTable($table);
+    }
+
+    /**
+     * Create a RENAME TABLE statement.
+     *
+     * @param string $table Current table name.
+     *
+     * @return RenameTable
+     */
+    public static function rename(string $table): RenameTable
+    {
+        return new RenameTable($table);
     }
 }

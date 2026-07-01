@@ -21,11 +21,15 @@ class MigrationCreator
     /**
      * Create a new migration file.
      *
+     * By default, Migraw tries to generate a smart SQL template based on
+     * the migration name. When $blank is true, a blank raw SQL stub is created.
+     *
      * @param string $name Migration name.
+     * @param bool $blank Whether to force a blank migration stub.
      *
      * @return string Created file path.
      */
-    public function create(string $name, bool $template = false): string
+    public function create(string $name, bool $blank = false): string
     {
         if (! is_dir($this->path)) {
             mkdir($this->path, 0775, true);
@@ -41,9 +45,9 @@ class MigrationCreator
             throw new RuntimeException("Migration already exists: {$path}");
         }
 
-        [$up, $down] = $template
-            ? $this->resolveTemplate($name)
-            : $this->rawSqlTemplate();
+        [$up, $down] = $blank
+            ? $this->rawSqlTemplate()
+            : $this->resolveTemplate($name);
 
         file_put_contents($path, $this->stub($up, $down));
 
@@ -72,6 +76,8 @@ class MigrationCreator
 
     /**
      * Resolve a migration template from its normalized name.
+     *
+     * If no known pattern matches, a blank raw SQL template is returned.
      *
      * @param string $name Normalized migration name.
      *
@@ -200,12 +206,12 @@ class MigrationCreator
     protected function createTableSql(string $table): string
     {
         return <<<SQL
-        CREATE TABLE {$table} (
-            {$this->idColumn()},
-            name VARCHAR(255) NULL,
-            {$this->createdAtColumn()},
-            {$this->updatedAtColumn()}
-        );
+CREATE TABLE {$table} (
+    {$this->idColumn()},
+    name VARCHAR(255) NULL,
+    {$this->createdAtColumn()},
+    {$this->updatedAtColumn()}
+);
 SQL;
     }
 
@@ -220,8 +226,8 @@ SQL;
     protected function addColumnSql(string $table, string $column): string
     {
         return <<<SQL
-        ALTER TABLE {$table}
-            ADD COLUMN {$column} VARCHAR(255) NULL;
+ALTER TABLE {$table}
+    ADD COLUMN {$column} VARCHAR(255) NULL;
 SQL;
     }
 
@@ -236,8 +242,8 @@ SQL;
     protected function dropColumnSql(string $table, string $column): string
     {
         return <<<SQL
-        ALTER TABLE {$table}
-            DROP COLUMN {$column};
+ALTER TABLE {$table}
+    DROP COLUMN {$column};
 SQL;
     }
 
@@ -269,8 +275,8 @@ SQL;
     protected function createIndexSql(string $table, string $column, string $index): string
     {
         return <<<SQL
-        CREATE INDEX {$index}
-        ON {$table} ({$column});
+CREATE INDEX {$index}
+ON {$table} ({$column});
 SQL;
     }
 
@@ -285,8 +291,7 @@ SQL;
     protected function dropIndexSql(string $index, string $table): string
     {
         return match ($this->driver()) {
-            'pgsql' => "DROP INDEX IF EXISTS {$index};",
-            'sqlite' => "DROP INDEX IF EXISTS {$index};",
+            'pgsql', 'sqlite' => "DROP INDEX IF EXISTS {$index};",
             default => "DROP INDEX {$index} ON {$table};",
         };
     }
@@ -304,12 +309,12 @@ SQL;
     {
         return match ($this->driver()) {
             'sqlite' => <<<SQL
-        CREATE UNIQUE INDEX {$name}
-        ON {$table} ({$column});
+CREATE UNIQUE INDEX {$name}
+ON {$table} ({$column});
 SQL,
             default => <<<SQL
-        ALTER TABLE {$table}
-            ADD CONSTRAINT {$name} UNIQUE ({$column});
+ALTER TABLE {$table}
+    ADD CONSTRAINT {$name} UNIQUE ({$column});
 SQL,
         };
     }
@@ -384,7 +389,7 @@ SQL,
     }
 
     /**
-     * Return the fallback raw SQL template.
+     * Return the fallback blank raw SQL template.
      *
      * @return array{0:string,1:string}
      */
@@ -409,8 +414,8 @@ SQL,
 
         return <<<PHP
 <<<SQL
-        {$sql}
-        SQL
+{$sql}
+SQL
 PHP;
     }
 

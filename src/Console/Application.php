@@ -2,7 +2,6 @@
 
 namespace Eril\Migraw\Console;
 
-use Eril\Migraw\Console;
 use Eril\Migraw\MigrationCreator;
 use Eril\Migraw\MigrationRepository;
 use Eril\Migraw\Migrator;
@@ -20,7 +19,7 @@ final class Application
 
     protected bool $force = false;
 
-    protected bool $template = false;
+    protected bool $blank = false;
 
     public function run(array $argv): int
     {
@@ -28,7 +27,7 @@ final class Application
         $this->command = $argv[1] ?? null;
         $this->dryRun = $this->hasOption('--dry-run') || $this->hasOption('--pretend');
         $this->force = $this->hasOption('--force');
-        $this->template = $this->hasOption('--template') || $this->hasOption('-t');
+        $this->blank = $this->hasOption('--blank') || $this->hasOption('-b');
 
         try {
             $this->handle();
@@ -87,9 +86,10 @@ final class Application
             'status' => $this->status($migrator),
             'validate' => $this->validate($path),
             'plan' => $this->plan($migrator),
+            'doctor' => $this->doctor($config, $pdo, $path, $repository),
             'reset' => $this->resetMigrations($migrator),
             'fresh' => $this->fresh($migrator),
-            'make' => $this->make($path, $this->args[2] ?? null, $pdo),
+            'make', 'new' => $this->make($path, $this->migrationNameArgument(), $pdo),
             'help', '--help', '-h' => $this->help(),
             default => $this->unknownCommand((string) $this->command),
         };
@@ -315,6 +315,140 @@ final class Application
             : count($pending) . " migrations pending.\n";
     }
 
+    /**
+     * Check Migraw configuration and environment.
+     *
+     * @param array<string,mixed> $config Migraw configuration.
+     * @param PDO $pdo Database connection.
+     * @param string $path Migration directory path.
+     * @param MigrationRepository $repository Migration repository.
+     *
+     * @return void
+     */
+    protected function doctor(
+        array $config,
+        PDO $pdo,
+        string $path,
+        MigrationRepository $repository
+    ): void {
+        $issues = 0;
+
+        echo Console::bold("Migraw Doctor\n\n");
+
+        $this->doctorOk('Configuration file', 'migraw.php');
+
+        if (isset($config['bootstrap'])) {
+            $bootstrap = $this->resolvePath((string) $config['bootstrap']);
+
+            if (file_exists($bootstrap)) {
+                $this->doctorOk('Bootstrap file', $this->relativePath($bootstrap));
+            } else {
+                $issues++;
+                $this->doctorFail('Bootstrap file', $this->relativePath($bootstrap) . ' not found');
+            }
+        } else {
+            $this->doctorOk('Bootstrap file', 'not configured');
+        }
+
+        try {
+            $pdo->query('SELECT 1');
+            $this->doctorOk('Database connection');
+        } catch (Throwable $e) {
+            $issues++;
+            $this->doctorFail('Database connection', $e->getMessage());
+        }
+
+        try {
+            $driver = (string) $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+            $this->doctorOk('Driver', $driver);
+        } catch (Throwable $e) {
+            $issues++;
+            $this->doctorFail('Driver', $e->getMessage());
+        }
+
+        if (is_dir($path)) {
+            $this->doctorOk('Migrations path', $this->relativePath($path));
+        } else {
+            $issues++;
+            $this->doctorFail('Migrations path', $this->relativePath($path) . ' not found');
+        }
+
+        if (is_dir($path) && is_readable($path)) {
+            $this->doctorOk('Migrations path readable');
+        } else {
+            $issues++;
+            $this->doctorFail('Migrations path readable');
+        }
+
+        if (is_dir($path) && is_writable($path)) {
+            $this->doctorOk('Migrations path writable');
+        } else {
+            $issues++;
+            $this->doctorFail('Migrations path writable');
+        }
+
+        try {
+            $repository->ensureTableExists();
+            $this->doctorOk('Migration repository');
+        } catch (Throwable $e) {
+            $issues++;
+            $this->doctorFail('Migration repository', $e->getMessage());
+        }
+
+        $files = is_dir($path)
+            ? (glob(rtrim($path, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '*.php') ?: [])
+            : [];
+
+        $this->doctorOk('Migration files', count($files) . ' found');
+
+        echo "\n";
+
+        if ($issues === 0) {
+            echo Console::green("Ready.\n");
+            return;
+        }
+
+        echo Console::red($issues . " issue(s) found.\n");
+    }
+
+    /**
+     * Print a successful doctor check line.
+     *
+     * @param string $label Check label.
+     * @param string|null $detail Optional detail.
+     *
+     * @return void
+     */
+    protected function doctorOk(string $label, ?string $detail = null): void
+    {
+        echo Console::green('[ok]') . " {$label}";
+
+        if ($detail !== null && $detail !== '') {
+            echo ": {$detail}";
+        }
+
+        echo "\n";
+    }
+
+    /**
+     * Print a failed doctor check line.
+     *
+     * @param string $label Check label.
+     * @param string|null $detail Optional detail.
+     *
+     * @return void
+     */
+    protected function doctorFail(string $label, ?string $detail = null): void
+    {
+        echo Console::red('[fail]') . " {$label}";
+
+        if ($detail !== null && $detail !== '') {
+            echo ": {$detail}";
+        }
+
+        echo "\n";
+    }
+
     protected function validateMigrationReturn(mixed $value, string $label): void
     {
         if (
@@ -337,6 +471,38 @@ final class Application
         );
     }
 
+    /**
+     * Resolve the migration name argument from the command line.
+     *
+     * This allows both:
+     *
+     * - migraw make create_users_table
+     * - migraw make -b create_users_table
+     *
+     * @return string|null
+     */
+    protected function migrationNameArgument(): ?string
+    {
+        foreach (array_slice($this->args, 2) as $arg) {
+            if (str_starts_with($arg, '-')) {
+                continue;
+            }
+
+            return $arg;
+        }
+
+        return null;
+    }
+
+    /**
+     * Create a new migration file.
+     *
+     * @param string $path Migration directory path.
+     * @param string|null $name Migration name.
+     * @param PDO $pdo Database connection.
+     *
+     * @return void
+     */
     protected function make(string $path, ?string $name, PDO $pdo): void
     {
         if (! $name) {
@@ -348,7 +514,7 @@ final class Application
         $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
 
         $creator = new MigrationCreator($path, $driver);
-        $file = $creator->create($name, $this->template);
+        $file = $creator->create($name, $this->blank);
 
         echo Console::green("Created migration: {$this->relativePath($file)}\n");
     }
@@ -625,41 +791,35 @@ PHP;
 Migraw
 
 Usage:
-  php vendor/bin/migraw init
-  php vendor/bin/migraw init:sqlite
-  php vendor/bin/migraw init:mysql
-  php vendor/bin/migraw init:pgsql
-
-  php vendor/bin/migraw make migration_name
-  php vendor/bin/migraw make migration_name --template
-
-  php vendor/bin/migraw migrate
-  php vendor/bin/migraw up
-
-  php vendor/bin/migraw rollback
-  php vendor/bin/migraw down
-
-  php vendor/bin/migraw status
-  php vendor/bin/migraw reset
-  php vendor/bin/migraw fresh
-  php vendor/bin/migraw plan
-  php vendor/bin/migraw validate
+  migraw init[:mysql|:pgsql|:sqlite] [--force]
+  migraw make|new <name> [--blank|-b]
+  migraw migrate|up [--dry-run|--pretend]
+  migraw rollback|down [--dry-run|--pretend]
+  migraw reset [--dry-run|--pretend]
+  migraw fresh [--dry-run|--pretend]
+  migraw status
+  migraw plan
+  migraw validate
+  migraw doctor
+  migraw help
 
 Commands:
   init              Create the default migraw.php config file
-  make              Create a new migration file
-  status            Show migration status
-  validate          Validate migration files
+  make, new         Create a new migration file
   migrate, up       Run pending migrations
   rollback, down    Rollback the last migration batch
   reset             Rollback all executed migrations
   fresh             Reset and run all migrations again
+  status            Show migration status
   plan              Show pending migration plan
+  validate          Validate migration files
+  doctor            Check configuration and environment
 
 Options:
-  -t, --template        Generate a smart SQL template from the migration name
-  --dry-run, --pretend  Show SQL without executing it
-  --force               Force execution, ignoring safety checks
+  -b, --blank       Generate a blank migration stub
+  --dry-run         Show SQL without executing it
+  --pretend         Alias of --dry-run
+  --force           Force supported operations
 
 TXT;
     }
