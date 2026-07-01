@@ -49,6 +49,7 @@ or choose a specific driver:
 ```bash
 php vendor/bin/migraw init:mysql
 php vendor/bin/migraw init:pgsql
+php vendor/bin/migraw init:sqlsrv
 php vendor/bin/migraw init:sqlite
 ```
 
@@ -108,7 +109,8 @@ Or a callable:
 
 ```php
 return [
-
+    'bootstrap' => 'bootstrap.php',
+    
     'path' => 'database/migrations',
 
     'connection' => static fn (): PDO => Database::connection(),
@@ -125,7 +127,6 @@ Create a migration:
 ```bash
 php vendor/bin/migraw make my_migration_name
 ```
-_Migraw will generate a smart SQL template when the migration name matches a known pattern._
 
 Example:
 
@@ -160,6 +161,7 @@ return new class extends Migration
     }
 };
 ```
+_Migraw will generate a smart SQL template when the migration name matches a known pattern._
 
 ---
 
@@ -297,6 +299,7 @@ Remove missing migration records:
 
 ```bash
 php vendor/bin/migraw repair
+php vendor/bin/migraw repair --modified # 
 ```
 
 ---
