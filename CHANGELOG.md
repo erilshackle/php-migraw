@@ -1,36 +1,13 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog],
-and this project adheres to [Semantic Versioning].
+*Changelog created using the [Simple Changelog](https://marketplace.visualstudio.com/items?itemName=tobiaswaelde.vscode-simple-changelog) extension for VS Code.*
 
 ## [Unreleased]
 
-- 
 
 ## [1.0.1] - 2026-07-01
-
 ### Added
-
 - Add support for SQL Server
 
 ### Changed
-
-
-### Deprecated
-
-### Removed
-
-### Fixed
-
-### Security
-
-
-# initial release
-
-
-<!-- Versions -->
-[unreleased]: https://github.com/erilshackle/php-migraw/compare/v0.0.2...HEAD
-[0.0.2]: https://github.com/erilshackle/php-migraw/compare/v0.0.1...v0.0.2
-[0.0.1]: https://github.com/erilshackle/php-migraw/releases/tag/v0.0.1
+- Enhance raw SQL template handling to support blank mode in migration creation

@@ -120,17 +120,18 @@ return [
 
 ## Creating a Migration
 
-Create an empty migration:
+Create a migration:
 
 ```bash
-php vendor/bin/migraw make create_users_table
+php vendor/bin/migraw make my_migration_name
 ```
+_Migraw will generate a smart SQL template when the migration name matches a known pattern._
 
 Example:
 
 ```text
 database/migrations/
-└── 20260627143000_create_users_table.php
+└── 20260627143000_my_migration_name.php
 ```
 
 ---
@@ -147,17 +148,14 @@ return new class extends Migration
     public function up(): string
     {
         return <<<SQL
-        CREATE TABLE users (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(255) NOT NULL
-        );
+        -- Write your UP SQL here
         SQL;
     }
 
     public function down(): string
     {
         return <<<SQL
-        DROP TABLE users;
+        -- Write your DOWN SQL here
         SQL;
     }
 };
@@ -167,27 +165,37 @@ return new class extends Migration
 
 ## Smart Templates
 
-Migraw can generate SQL templates based on the migration name.
+Migraw recognizes common migration names and generates an appropriate SQL template.
 
-Example:
+| Migration name | Generated SQL |
+|----------------|---------------|
+| `create_users_table` | `CREATE TABLE users (...)` |
+| `create_roles` | `CREATE TABLE roles (...)` |
+| `drop_users_table` | `DROP TABLE users` |
+| `rename_users_to_members` | `RENAME TABLE users TO members` |
+| `add_email_to_users` | `ALTER TABLE users ADD COLUMN email ...` |
+| `remove_email_from_users` | `ALTER TABLE users DROP COLUMN email` |
+| `create_users_email_index` | `CREATE INDEX idx_users_email ON users(email)` |
+| `drop_users_email_index` | `DROP INDEX idx_users_email` |
+| `create_unique_users_email` | `ALTER TABLE users ADD CONSTRAINT uq_users_email UNIQUE(email)` |
+| `drop_unique_users_email` | `ALTER TABLE users DROP CONSTRAINT uq_users_email` |
 
-```bash
-php vendor/bin/migraw make create_users_table -t
-```
+_If no known pattern matches, Migraw generates a blank SQL migration instead._
 
-generates:
-```sql
-CREATE TABLE users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NULL,
-    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+Use `--blank` or `-b` to force an empty raw SQL stub.
+
+```php
+return $this->raw(<<<SQL
+
+-- Write here your sql
+
+SQL);
 ```
 
 ---
 
-# Schema Builder
+
+## SQL Helpers
 
 ```php
 <?php
@@ -209,7 +217,7 @@ return new class extends Migration
 
     public function down(): SqlStatement
     {
-        $this->drop('users')
+        return $this->drop('users')
             ->ifExists();
     }
 };
@@ -244,12 +252,6 @@ public function up(): array
 Run pending migrations:
 
 ```bash
-php vendor/bin/migraw
-```
-
-or
-
-```bash
 php vendor/bin/migraw migrate
 php vendor/bin/migraw up
 ```
@@ -277,6 +279,24 @@ Show migration status:
 
 ```bash
 php vendor/bin/migraw status
+```
+
+Validate migration files:
+
+```bash
+php vendor/bin/migraw validate
+```
+
+Check configuration and environment:
+
+```bash
+php vendor/bin/migraw doctor
+```
+
+Remove missing migration records:
+
+```bash
+php vendor/bin/migraw repair
 ```
 
 ---
@@ -331,7 +351,7 @@ You choose the level of abstraction that best fits your project:
 
 - Raw SQL
 - Smart SQL templates
-- Lightweight schema builder
+- Lightweight SQL helpers
 
 Nothing more.
 
