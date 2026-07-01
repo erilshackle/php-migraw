@@ -5,6 +5,7 @@ namespace Eril\Migraw;
 use Eril\Migraw\Sql\AlterTable;
 use Eril\Migraw\Sql\CreateTable;
 use Eril\Migraw\Sql\DropTable;
+use Eril\Migraw\Sql\RawSql;
 use Eril\Migraw\Sql\RenameTable;
 use Eril\Migraw\Sql\SqlStatement;
 
@@ -30,6 +31,29 @@ abstract class Migration
      * @return string|SqlStatement|array<int,string|SqlStatement>
      */
     abstract public function down(): string|SqlStatement|array;
+
+
+    /**
+     * Wrap raw SQL as a Migraw SQL statement.
+     *
+     * Example:
+     *
+     * ```
+     * return $this->raw(<<<SQL
+     * CREATE TABLE users (
+     *     id INT PRIMARY KEY
+     * );
+     * SQL);
+     * ```
+     *
+     * @param string $SQL Raw SQL.
+     *
+     * @return RawSql
+     */
+    final protected function raw(string $SQL): RawSql
+    {
+        return new RawSql($SQL);
+    }
 
     /**
      * Create a CREATE TABLE schema statement.

@@ -9,26 +9,11 @@ use RuntimeException;
  */
 class MigrationCreator
 {
-    /**
-     * @param string $path Migration directory path.
-     * @param string $driver Database driver name.
-     */
     public function __construct(
         protected string $path,
         protected string $driver = 'mysql'
     ) {}
 
-    /**
-     * Create a new migration file.
-     *
-     * By default, Migraw tries to generate a smart SQL template based on
-     * the migration name. When $blank is true, a blank raw SQL stub is created.
-     *
-     * @param string $name Migration name.
-     * @param bool $blank Whether to force a blank migration stub.
-     *
-     * @return string Created file path.
-     */
     public function create(string $name, bool $blank = false): string
     {
         if (! is_dir($this->path)) {
@@ -54,13 +39,6 @@ class MigrationCreator
         return $path;
     }
 
-    /**
-     * Normalize a migration name for file creation.
-     *
-     * @param string $name Raw migration name.
-     *
-     * @return string
-     */
     protected function normalizeName(string $name): string
     {
         $name = strtolower(trim($name));
@@ -74,15 +52,6 @@ class MigrationCreator
         return $name;
     }
 
-    /**
-     * Resolve a migration template from its normalized name.
-     *
-     * If no known pattern matches, a blank raw SQL template is returned.
-     *
-     * @param string $name Normalized migration name.
-     *
-     * @return array{0:string,1:string}
-     */
     protected function resolveTemplate(string $name): array
     {
         foreach ($this->templates() as $pattern => $resolver) {
@@ -94,11 +63,6 @@ class MigrationCreator
         return $this->rawSqlTemplate();
     }
 
-    /**
-     * Registered migration name patterns.
-     *
-     * @return array<string, callable(array<int|string,string>): array{0:string,1:string}>
-     */
     protected function templates(): array
     {
         return [
@@ -196,65 +160,34 @@ class MigrationCreator
         ];
     }
 
-    /**
-     * Build CREATE TABLE SQL.
-     *
-     * @param string $table Table name.
-     *
-     * @return string
-     */
     protected function createTableSql(string $table): string
     {
         return <<<SQL
-CREATE TABLE {$table} (
-    {$this->idColumn()},
-    name VARCHAR(255) NULL,
-    {$this->createdAtColumn()},
-    {$this->updatedAtColumn()}
-);
+        CREATE TABLE {$table} (
+            {$this->idColumn()},
+            name VARCHAR(255) NULL,
+            {$this->createdAtColumn()},
+            {$this->updatedAtColumn()}
+        );
 SQL;
     }
 
-    /**
-     * Build ALTER TABLE ADD COLUMN SQL.
-     *
-     * @param string $table Table name.
-     * @param string $column Column name.
-     *
-     * @return string
-     */
     protected function addColumnSql(string $table, string $column): string
     {
         return <<<SQL
-ALTER TABLE {$table}
-    ADD COLUMN {$column} VARCHAR(255) NULL;
+        ALTER TABLE {$table}
+            ADD COLUMN {$column} VARCHAR(255) NULL;
 SQL;
     }
 
-    /**
-     * Build ALTER TABLE DROP COLUMN SQL.
-     *
-     * @param string $table Table name.
-     * @param string $column Column name.
-     *
-     * @return string
-     */
     protected function dropColumnSql(string $table, string $column): string
     {
         return <<<SQL
-ALTER TABLE {$table}
-    DROP COLUMN {$column};
+        ALTER TABLE {$table}
+            DROP COLUMN {$column};
 SQL;
     }
 
-    /**
-     * Build rename table SQL.
-     *
-     * @param string $from Current table name.
-     * @param string $to New table name.
-     *
-     * @return string
-     */
     protected function renameTableSql(string $from, string $to): string
     {
         return match ($this->driver()) {
@@ -263,31 +196,14 @@ SQL;
         };
     }
 
-    /**
-     * Build CREATE INDEX SQL.
-     *
-     * @param string $table Table name.
-     * @param string $column Column name.
-     * @param string $index Index name.
-     *
-     * @return string
-     */
     protected function createIndexSql(string $table, string $column, string $index): string
     {
         return <<<SQL
-CREATE INDEX {$index}
-ON {$table} ({$column});
+        CREATE INDEX {$index}
+        ON {$table} ({$column});
 SQL;
     }
 
-    /**
-     * Build DROP INDEX SQL.
-     *
-     * @param string $index Index name.
-     * @param string $table Table name.
-     *
-     * @return string
-     */
     protected function dropIndexSql(string $index, string $table): string
     {
         return match ($this->driver()) {
@@ -296,37 +212,20 @@ SQL;
         };
     }
 
-    /**
-     * Build unique constraint SQL.
-     *
-     * @param string $table Table name.
-     * @param string $column Column name.
-     * @param string $name Constraint/index name.
-     *
-     * @return string
-     */
     protected function createUniqueSql(string $table, string $column, string $name): string
     {
         return match ($this->driver()) {
             'sqlite' => <<<SQL
-CREATE UNIQUE INDEX {$name}
-ON {$table} ({$column});
+        CREATE UNIQUE INDEX {$name}
+        ON {$table} ({$column});
 SQL,
             default => <<<SQL
-ALTER TABLE {$table}
-    ADD CONSTRAINT {$name} UNIQUE ({$column});
+        ALTER TABLE {$table}
+            ADD CONSTRAINT {$name} UNIQUE ({$column});
 SQL,
         };
     }
 
-    /**
-     * Build drop unique constraint SQL.
-     *
-     * @param string $table Table name.
-     * @param string $name Constraint/index name.
-     *
-     * @return string
-     */
     protected function dropUniqueSql(string $table, string $name): string
     {
         return match ($this->driver()) {
@@ -336,11 +235,6 @@ SQL,
         };
     }
 
-    /**
-     * Return an ID column definition for the current driver.
-     *
-     * @return string
-     */
     protected function idColumn(): string
     {
         return match ($this->driver()) {
@@ -350,11 +244,6 @@ SQL,
         };
     }
 
-    /**
-     * Return a created_at column definition for the current driver.
-     *
-     * @return string
-     */
     protected function createdAtColumn(): string
     {
         return match ($this->driver()) {
@@ -364,11 +253,6 @@ SQL,
         };
     }
 
-    /**
-     * Return an updated_at column definition for the current driver.
-     *
-     * @return string
-     */
     protected function updatedAtColumn(): string
     {
         return match ($this->driver()) {
@@ -378,21 +262,11 @@ SQL,
         };
     }
 
-    /**
-     * Normalize the current driver name.
-     *
-     * @return string
-     */
     protected function driver(): string
     {
         return strtolower($this->driver);
     }
 
-    /**
-     * Return the fallback blank raw SQL template.
-     *
-     * @return array{0:string,1:string}
-     */
     protected function rawSqlTemplate(): array
     {
         return [
@@ -401,32 +275,23 @@ SQL,
         ];
     }
 
-    /**
-     * Wrap SQL in a heredoc return expression.
-     *
-     * @param string $sql SQL contents.
-     *
-     * @return string
-     */
     protected function sqlBlock(string $sql): string
     {
         $sql = trim($sql);
 
+        // return <<<PHP
+        // \$this->raw(<<<SQL
+        //         {$sql}
+        //         SQL)
+        // PHP;
+
         return <<<PHP
-<<<SQL
-{$sql}
-SQL
-PHP;
+        <<<SQL
+                {$sql}
+                SQL
+        PHP;
     }
 
-    /**
-     * Build the final migration file contents.
-     *
-     * @param string $up Up method return expression.
-     * @param string $down Down method return expression.
-     *
-     * @return string
-     */
     protected function stub(string $up, string $down): string
     {
         return <<<PHP

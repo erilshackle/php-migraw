@@ -134,6 +134,45 @@ class Migrator
     }
 
     /**
+     * Return migrations recorded in the repository but missing from disk.
+     *
+     * @return string[]
+     */
+    public function missing(): array
+    {
+        $files = $this->getMigrationFiles();
+        $ran = $this->repository->getRan();
+
+        $missing = [];
+
+        foreach ($ran as $migrationName) {
+            if (! isset($files[$migrationName])) {
+                $missing[] = $migrationName;
+            }
+        }
+
+        return $missing;
+    }
+
+    /**
+     * Remove missing migration records from the repository.
+     *
+     * This does not run down() and does not change the database schema.
+     *
+     * @return string[] Removed migration names.
+     */
+    public function repair(): array
+    {
+        $missing = $this->missing();
+
+        foreach ($missing as $migrationName) {
+            $this->repository->forget($migrationName);
+        }
+
+        return $missing;
+    }
+
+    /**
      * Return status information for all migration files.
      *
      * A migration is marked as modified when its stored checksum differs from
@@ -148,6 +187,15 @@ class Migrator
         $ran = $this->repository->getRan();
 
         $status = [];
+
+        foreach ($ran as $migrationName) {
+            if (! isset($files[$migrationName])) {
+                $status[] = [
+                    'migration' => $migrationName,
+                    'status' => 'missing',
+                ];
+            }
+        }
 
         foreach ($files as $migrationName => $file) {
             if (! in_array($migrationName, $ran, true)) {
@@ -169,6 +217,7 @@ class Migrator
                     : 'ran',
             ];
         }
+
 
         return $status;
     }
@@ -193,6 +242,7 @@ class Migrator
 
         return $pending;
     }
+
 
     /**
      * Enable dry-run mode.

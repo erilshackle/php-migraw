@@ -287,6 +287,26 @@ class MigrationRepository
     }
 
     /**
+     * Delete a migration record without running its down method.
+     *
+     * @param string $migration Migration name.
+     *
+     * @return void
+     */
+    public function forget(string $migration): void
+    {
+        $this->ensureTableExists();
+
+        $stmt = $this->pdo->prepare(
+            "DELETE FROM {$this->table} WHERE migration = :migration"
+        );
+
+        $stmt->execute([
+            'migration' => $migration,
+        ]);
+    }
+
+    /**
      * Get the stored checksum for a migration.
      *
      * @param string $migration Migration name.

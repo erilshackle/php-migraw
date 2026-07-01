@@ -85,11 +85,11 @@ final class Application
             'rollback', 'down' => $this->rollback($migrator),
             'status' => $this->status($migrator),
             'validate' => $this->validate($path),
-            'plan' => $this->plan($migrator),
             'doctor' => $this->doctor($config, $pdo, $path, $repository),
             'reset' => $this->resetMigrations($migrator),
             'fresh' => $this->fresh($migrator),
             'make', 'new' => $this->make($path, $this->migrationNameArgument(), $pdo),
+            'repair' => $this->repair($migrator),
             'help', '--help', '-h' => $this->help(),
             default => $this->unknownCommand((string) $this->command),
         };
@@ -224,6 +224,7 @@ final class Application
                 'ran' => Console::green('[ran]'),
                 'pending' => Console::yellow('[pending]'),
                 'modified' => Console::red('[modified]'),
+                'missing' => Console::red('[missing]'),
                 default => "[{$row['status']}]",
             };
 
@@ -290,30 +291,6 @@ final class Application
         echo Console::red("Some migrations are invalid.\n");
     }
 
-    protected function plan(Migrator $migrator): void
-    {
-        $pending = $migrator->pending();
-
-        echo Console::bold("Migration plan\n\n");
-
-        if ($pending === []) {
-            echo "Nothing to migrate.\n";
-            return;
-        }
-
-        foreach ($pending as $index => $migration) {
-            printf(
-                "%s %s\n",
-                Console::cyan(str_pad((string) ($index + 1) . '.', 4)),
-                $migration
-            );
-        }
-
-        echo "\n";
-        echo count($pending) === 1
-            ? "1 migration pending.\n"
-            : count($pending) . " migrations pending.\n";
-    }
 
     /**
      * Check Migraw configuration and environment.
@@ -533,6 +510,53 @@ final class Application
         foreach ($sql as $statement) {
             echo trim($statement) . "\n\n";
         }
+    }
+
+    /**
+     * Remove missing migration records from the repository.
+     *
+     * @param Migrator $migrator
+     *
+     * @return void
+     */
+    protected function repair(Migrator $migrator): void
+    {
+        $missing = $migrator->missing();
+
+        echo Console::bold("Migraw Repair\n\n");
+
+        if ($missing === []) {
+            echo "No missing migrations found.\n";
+            return;
+        }
+
+        echo Console::yellow("Missing migrations:\n\n");
+
+        foreach ($missing as $migration) {
+            echo "  - {$migration}\n";
+        }
+
+        if (! $this->force) {
+            echo Console::bold("\nRemove these records from the migration repository? [y/N]: ");
+
+            $answer = trim((string) fgets(STDIN));
+
+            if (! in_array(strtolower($answer), ['y', 'yes'], true)) {
+                echo "Cancelled.\n";
+                return;
+            }
+        }
+
+        $removed = $migrator->repair();
+
+        echo "\n";
+
+        foreach ($removed as $migration) {
+            echo Console::green("Removed: {$migration}\n");
+        }
+
+        echo "\n";
+        echo Console::green(count($removed) . " record(s) removed.\n");
     }
 
     protected function loadDefaultBootstrap(): void
@@ -797,8 +821,8 @@ Usage:
   migraw rollback|down [--dry-run|--pretend]
   migraw reset [--dry-run|--pretend]
   migraw fresh [--dry-run|--pretend]
+  migraw repair [--force]
   migraw status
-  migraw plan
   migraw validate
   migraw doctor
   migraw help
@@ -810,8 +834,8 @@ Commands:
   rollback, down    Rollback the last migration batch
   reset             Rollback all executed migrations
   fresh             Reset and run all migrations again
+  repair            Remove missing migration records
   status            Show migration status
-  plan              Show pending migration plan
   validate          Validate migration files
   doctor            Check configuration and environment
 
