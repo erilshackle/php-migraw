@@ -1,17 +1,25 @@
 <?php
 
-namespace Eril\Migraw\Console;
+namespace Eril\Migraw\Core;
 
+use Eril\Migraw\Migration;
 use Eril\Migraw\MigrationCreator;
 use Eril\Migraw\MigrationRepository;
 use Eril\Migraw\Migrator;
+use Eril\Migraw\Sql\SqlStatement;
 use PDO;
 use RuntimeException;
 use Throwable;
 
 final class Application
 {
-    protected array $args = [];
+    protected CliOptions $options;
+
+    protected PathResolver $paths;
+
+    protected Config $configManager;
+
+    protected ConnectionResolver $connections;
 
     protected ?string $command = null;
 
@@ -23,11 +31,15 @@ final class Application
 
     public function run(array $argv): int
     {
-        $this->args = $argv;
-        $this->command = $argv[1] ?? null;
-        $this->dryRun = $this->hasOption('--dry-run') || $this->hasOption('--pretend');
-        $this->force = $this->hasOption('--force');
-        $this->blank = $this->hasOption('--blank') || $this->hasOption('-b');
+        $this->options = CliOptions::fromArgv($argv);
+        $this->paths = new PathResolver();
+        $this->configManager = new Config($this->paths);
+        $this->connections = new ConnectionResolver($this->paths);
+
+        $this->command = $this->options->command();
+        $this->dryRun = $this->options->hasAny(['--dry-run', '--pretend']);
+        $this->force = $this->options->has('--force');
+        $this->blank = $this->options->hasAny(['--blank', '-b']);
 
         try {
             $this->handle();
@@ -43,25 +55,25 @@ final class Application
     protected function handle(): void
     {
         if (in_array($this->command, ['init', '--init'], true)) {
-            $this->initConfig($this->force);
+            $this->configManager->init($this->force);
             return;
         }
 
         if ($this->command !== null && str_starts_with($this->command, 'init:')) {
             $driver = substr($this->command, strlen('init:'));
-            $this->initConfig($this->force, $driver);
+            $this->configManager->init($this->force, $driver);
             return;
         }
 
-        $this->loadDefaultBootstrap();
+        $this->configManager->loadDefaultBootstrap();
 
-        $config = $this->loadConfig();
+        $config = $this->configManager->load();
 
-        $this->loadConfiguredBootstrap($config);
+        $this->configManager->loadConfiguredBootstrap($config);
 
-        $pdo = $this->resolvePdo($config);
+        $pdo = $this->connections->resolve($config);
 
-        $path = $this->resolvePath($config['path'] ?? 'database/migrations');
+        $path = $this->paths->resolve($config['path'] ?? 'database/migrations');
         $table = $config['table'] ?? 'migrations';
 
         $repository = new MigrationRepository($pdo, $table);
@@ -88,7 +100,7 @@ final class Application
             'doctor' => $this->doctor($config, $pdo, $path, $repository),
             'reset' => $this->resetMigrations($migrator),
             'fresh' => $this->fresh($migrator),
-            'make', 'new' => $this->make($path, $this->migrationNameArgument(), $pdo),
+            'make', 'new' => $this->make($path, $this->options->migrationName(), $pdo),
             'repair' => $this->repair($migrator),
             'help', '--help', '-h' => $this->help(),
             default => $this->unknownCommand((string) $this->command),
@@ -265,7 +277,7 @@ final class Application
             try {
                 $migration = require $file;
 
-                if (! $migration instanceof \Eril\Migraw\Migration) {
+                if (! $migration instanceof Migration) {
                     $valid = false;
                     echo Console::red("Invalid migration: {$name} must return an instance of Migration.\n");
                     continue;
@@ -283,25 +295,11 @@ final class Application
 
         echo "\n";
 
-        if ($valid) {
-            echo Console::green("All migrations are valid.\n");
-            return;
-        }
-
-        echo Console::red("Some migrations are invalid.\n");
+        echo $valid
+            ? Console::green("All migrations are valid.\n")
+            : Console::red("Some migrations are invalid.\n");
     }
 
-
-    /**
-     * Check Migraw configuration and environment.
-     *
-     * @param array<string,mixed> $config Migraw configuration.
-     * @param PDO $pdo Database connection.
-     * @param string $path Migration directory path.
-     * @param MigrationRepository $repository Migration repository.
-     *
-     * @return void
-     */
     protected function doctor(
         array $config,
         PDO $pdo,
@@ -315,13 +313,13 @@ final class Application
         $this->doctorOk('Configuration file', 'migraw.php');
 
         if (isset($config['bootstrap'])) {
-            $bootstrap = $this->resolvePath((string) $config['bootstrap']);
+            $bootstrap = $this->paths->resolve((string) $config['bootstrap']);
 
             if (file_exists($bootstrap)) {
-                $this->doctorOk('Bootstrap file', $this->relativePath($bootstrap));
+                $this->doctorOk('Bootstrap file', $this->paths->relative($bootstrap));
             } else {
                 $issues++;
-                $this->doctorFail('Bootstrap file', $this->relativePath($bootstrap) . ' not found');
+                $this->doctorFail('Bootstrap file', $this->paths->relative($bootstrap) . ' not found');
             }
         } else {
             $this->doctorOk('Bootstrap file', 'not configured');
@@ -344,10 +342,10 @@ final class Application
         }
 
         if (is_dir($path)) {
-            $this->doctorOk('Migrations path', $this->relativePath($path));
+            $this->doctorOk('Migrations path', $this->paths->relative($path));
         } else {
             $issues++;
-            $this->doctorFail('Migrations path', $this->relativePath($path) . ' not found');
+            $this->doctorFail('Migrations path', $this->paths->relative($path) . ' not found');
         }
 
         if (is_dir($path) && is_readable($path)) {
@@ -380,22 +378,11 @@ final class Application
 
         echo "\n";
 
-        if ($issues === 0) {
-            echo Console::green("Ready.\n");
-            return;
-        }
-
-        echo Console::red($issues . " issue(s) found.\n");
+        echo $issues === 0
+            ? Console::green("Ready.\n")
+            : Console::red($issues . " issue(s) found.\n");
     }
 
-    /**
-     * Print a successful doctor check line.
-     *
-     * @param string $label Check label.
-     * @param string|null $detail Optional detail.
-     *
-     * @return void
-     */
     protected function doctorOk(string $label, ?string $detail = null): void
     {
         echo Console::green('[ok]') . " {$label}";
@@ -407,14 +394,6 @@ final class Application
         echo "\n";
     }
 
-    /**
-     * Print a failed doctor check line.
-     *
-     * @param string $label Check label.
-     * @param string|null $detail Optional detail.
-     *
-     * @return void
-     */
     protected function doctorFail(string $label, ?string $detail = null): void
     {
         echo Console::red('[fail]') . " {$label}";
@@ -430,7 +409,7 @@ final class Application
     {
         if (
             is_string($value)
-            || $value instanceof \Eril\Migraw\Sql\SqlStatement
+            || $value instanceof SqlStatement
         ) {
             return;
         }
@@ -448,38 +427,6 @@ final class Application
         );
     }
 
-    /**
-     * Resolve the migration name argument from the command line.
-     *
-     * This allows both:
-     *
-     * - migraw make create_users_table
-     * - migraw make -b create_users_table
-     *
-     * @return string|null
-     */
-    protected function migrationNameArgument(): ?string
-    {
-        foreach (array_slice($this->args, 2) as $arg) {
-            if (str_starts_with($arg, '-')) {
-                continue;
-            }
-
-            return $arg;
-        }
-
-        return null;
-    }
-
-    /**
-     * Create a new migration file.
-     *
-     * @param string $path Migration directory path.
-     * @param string|null $name Migration name.
-     * @param PDO $pdo Database connection.
-     *
-     * @return void
-     */
     protected function make(string $path, ?string $name, PDO $pdo): void
     {
         if (! $name) {
@@ -493,7 +440,7 @@ final class Application
         $creator = new MigrationCreator($path, $driver);
         $file = $creator->create($name, $this->blank);
 
-        echo Console::green("Created migration: {$this->relativePath($file)}\n");
+        echo Console::green("Created migration: {$this->paths->relative($file)}\n");
     }
 
     protected function printPretendedSql(Migrator $migrator): void
@@ -512,13 +459,6 @@ final class Application
         }
     }
 
-    /**
-     * Remove missing migration records from the repository.
-     *
-     * @param Migrator $migrator
-     *
-     * @return void
-     */
     protected function repair(Migrator $migrator): void
     {
         $missing = $migrator->missing();
@@ -557,249 +497,6 @@ final class Application
 
         echo "\n";
         echo Console::green(count($removed) . " record(s) removed.\n");
-    }
-
-    protected function loadDefaultBootstrap(): void
-    {
-        $bootstrap = $this->basePath('bootstrap.php');
-
-        if (file_exists($bootstrap)) {
-            require_once $bootstrap;
-        }
-    }
-
-    protected function loadConfig(): array
-    {
-        $configPath = $this->basePath('migraw.php');
-
-        if (! file_exists($configPath)) {
-            throw new RuntimeException(
-                "Config file not found: migraw.php\nRun: php vendor/bin/migraw init"
-            );
-        }
-
-        $config = require $configPath;
-
-        if (! is_array($config)) {
-            throw new RuntimeException('Migraw config file must return an array.');
-        }
-
-        return $config;
-    }
-
-    protected function loadConfiguredBootstrap(array $config): void
-    {
-        if (! isset($config['bootstrap'])) {
-            return;
-        }
-
-        $bootstrap = $this->resolvePath($config['bootstrap']);
-
-        if (file_exists($bootstrap)) {
-            require_once $bootstrap;
-        }
-    }
-
-    protected function resolvePdo(array $config): PDO
-    {
-        $pdo = $config['pdo'] ?? $config['connection'] ?? null;
-
-        if (is_callable($pdo)) {
-            $pdo = $pdo();
-        }
-
-        if ($pdo instanceof PDO) {
-            return $pdo;
-        }
-
-        if (! is_array($pdo)) {
-            throw new RuntimeException('Database connection must be a PDO instance, callable, or connection array.');
-        }
-
-        return $this->createPdoFromConnection($pdo, $config['options'] ?? []);
-    }
-
-    protected function createPdoFromConnection(array $connection, array $options = []): PDO
-    {
-        $driver = $connection['driver'] ?? 'mysql';
-
-        $options = $options + [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-        ];
-
-        $dsn = match ($driver) {
-            'sqlite' => 'sqlite:' . $this->resolvePath(
-                $connection['sqlite_path'] ?? 'database/database.sqlite'
-            ),
-
-            'pgsql' => sprintf(
-                'pgsql:host=%s;port=%s;dbname=%s',
-                $connection['host'] ?? '127.0.0.1',
-                $connection['port'] ?? '5432',
-                $connection['database'] ?? ''
-            ),
-
-            'mysql' => sprintf(
-                'mysql:host=%s;port=%s;dbname=%s;charset=%s',
-                $connection['host'] ?? '127.0.0.1',
-                $connection['port'] ?? '3306',
-                $connection['database'] ?? '',
-                $connection['charset'] ?? 'utf8mb4'
-            ),
-
-            default => throw new RuntimeException("Unsupported database driver: {$driver}"),
-        };
-
-        $username = $driver === 'sqlite' ? null : ($connection['username'] ?? null);
-        $password = $driver === 'sqlite' ? null : ($connection['password'] ?? null);
-
-        return new PDO($dsn, $username, $password, $options);
-    }
-
-
-
-    protected function initConfig(bool $forced, string $driver = 'mysql'): void
-    {
-        $configPath = $this->basePath('migraw.php');
-
-        if (! $forced && file_exists($configPath)) {
-            echo "Config file already exists: migraw.php\n";
-            return;
-        }
-
-        file_put_contents($configPath, $this->defaultConfigStub($driver));
-
-        $migrationsPath = $this->basePath('database/migrations');
-
-        if (! is_dir($migrationsPath)) {
-            mkdir($migrationsPath, 0775, true);
-            echo Console::green("Created directory: database/migrations\n");
-        }
-
-        echo Console::green("Created config: migraw.php\n");
-    }
-
-    protected function defaultConfigStub(string $driver = 'mysql'): string
-    {
-        $driver = strtolower($driver);
-
-        $connection = match ($driver) {
-            'sqlite' => <<<'PHP'
-'connection' => [
-        'driver' => 'sqlite',
-        'sqlite_path' => 'database/database.sqlite',
-    ]
-PHP,
-
-            'pgsql' => <<<'PHP'
-'connection' => [
-        'driver' => $_ENV['DB_CONNECTION'] ?? 'pgsql',
-
-        'host' => $_ENV['DB_HOST'] ?? '127.0.0.1',
-        'port' => $_ENV['DB_PORT'] ?? '5432',
-        'database' => $_ENV['DB_DATABASE'] ?? '',
-        'username' => $_ENV['DB_USERNAME'] ?? 'postgres',
-        'password' => $_ENV['DB_PASSWORD'] ?? '',
-    ]
-PHP,
-
-            default => <<<'PHP'
-'connection' => [
-        'driver' => $_ENV['DB_CONNECTION'] ?? 'mysql',
-
-        'host' => $_ENV['DB_HOST'] ?? '127.0.0.1',
-        'port' => $_ENV['DB_PORT'] ?? '3306',
-        'database' => $_ENV['DB_DATABASE'] ?? '',
-        'username' => $_ENV['DB_USERNAME'] ?? 'root',
-        'password' => $_ENV['DB_PASSWORD'] ?? '',
-
-        'charset' => $_ENV['DB_CHARSET'] ?? 'utf8mb4',
-    ]
-PHP,
-        };
-
-        return <<<PHP
-<?php
-
-return [
-
-    /*
-    |--------------------------------------------------------------------------
-    | Bootstrap File
-    |--------------------------------------------------------------------------
-    |
-    | Optional file loaded before the migrator starts.
-    | Useful for loading environment variables, constants,
-    | framework bootstrap files, or application services.
-    |
-    */
-
-    // 'bootstrap' => 'bootstrap.php',
-
-    /*
-    |--------------------------------------------------------------------------
-    | Migrations Path
-    |--------------------------------------------------------------------------
-    |
-    | Directory where your migration files are stored.
-    |
-    */
-
-    'path' => 'database/migrations',
-
-    /*
-    |--------------------------------------------------------------------------
-    | Database Connection
-    |--------------------------------------------------------------------------
-    |
-    | You may configure the connection using an array, a PDO instance,
-    | or a callable that returns a PDO instance.
-    |
-    */
-
-    {$connection},
-
-];
-
-PHP;
-    }
-
-    protected function resolvePath(string $path): string
-    {
-        if ($this->isAbsolutePath($path)) {
-            return $path;
-        }
-
-        return $this->basePath($path);
-    }
-
-    protected function basePath(string $path = ''): string
-    {
-        $base = getcwd();
-
-        if ($path === '') {
-            return $base;
-        }
-
-        return $base . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, ltrim($path, '/\\'));
-    }
-
-    protected function isAbsolutePath(string $path): bool
-    {
-        return str_starts_with($path, '/')
-            || preg_match('/^[A-Za-z]:[\/\\\\]/', $path) === 1;
-    }
-
-    protected function relativePath(string $path): string
-    {
-        return ltrim(str_replace((string) getcwd(), '', $path), DIRECTORY_SEPARATOR);
-    }
-
-    protected function hasOption(string $option): bool
-    {
-        return in_array($option, $this->args, true);
     }
 
     protected function unknownCommand(string $command): void
