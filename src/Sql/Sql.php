@@ -6,7 +6,7 @@ namespace Eril\Migraw\Sql;
  * Lightweight schema statement factory.
  *
  * Sql provides the preferred fluent API used by Migration helper methods.
- * @deprecated will 
+ * @since 1.0.0 
  */
 final class Sql
 {

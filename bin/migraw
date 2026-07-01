@@ -17,6 +17,9 @@
  *  reset      Rollback all executed migrations
  *  fresh      Safe refresh: reset then migrate
  *  make       Create a new migration file
+ *  repair     Remove missing migration records
+ *  validate   Validate migration files
+ *  doctor     Check configuration and environment
  *
  * @author Eril TS Carvalho
  * @copyright Copyright (c) 2026 Eril TS Carvalho
