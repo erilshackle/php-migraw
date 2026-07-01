@@ -173,6 +173,56 @@ class Migrator
     }
 
     /**
+     * Update stored checksums for modified migrations.
+     *
+     * This does not run any SQL and does not change the database schema.
+     *
+     * @return string[] Updated migration names.
+     */
+    public function repairModified(): array
+    {
+        $files = $this->getMigrationFiles();
+        $modified = $this->modified();
+
+        foreach ($modified as $migrationName) {
+            $this->repository->updateChecksum(
+                $migrationName,
+                $this->checksum($files[$migrationName])
+            );
+        }
+
+        return $modified;
+    }
+
+    /**
+     * Return migrations that were modified after being executed.
+     *
+     * @return string[]
+     */
+    public function modified(): array
+    {
+        $files = $this->getMigrationFiles();
+        $ran = $this->repository->getRan();
+
+        $modified = [];
+
+        foreach ($ran as $migrationName) {
+            if (! isset($files[$migrationName])) {
+                continue;
+            }
+
+            $stored = $this->repository->checksumOf($migrationName);
+            $current = $this->checksum($files[$migrationName]);
+
+            if ($stored !== null && $stored !== $current) {
+                $modified[] = $migrationName;
+            }
+        }
+
+        return $modified;
+    }
+
+    /**
      * Return status information for all migration files.
      *
      * A migration is marked as modified when its stored checksum differs from

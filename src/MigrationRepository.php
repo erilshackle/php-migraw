@@ -336,6 +336,30 @@ class MigrationRepository
     }
 
     /**
+     * Update the stored checksum for a migration.
+     *
+     * @param string $migration Migration name.
+     * @param string $checksum New checksum.
+     *
+     * @return void
+     */
+    public function updateChecksum(string $migration, string $checksum): void
+    {
+        $this->ensureTableExists();
+
+        $stmt = $this->pdo->prepare(
+            "UPDATE {$this->table}
+         SET checksum = :checksum
+         WHERE migration = :migration"
+        );
+
+        $stmt->execute([
+            'migration' => $migration,
+            'checksum' => $checksum,
+        ]);
+    }
+
+    /**
      * Return all executed migration records.
      *
      * @return array<int,array<string,mixed>>

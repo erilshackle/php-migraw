@@ -28,6 +28,7 @@ final class Application
     protected bool $force = false;
 
     protected bool $blank = false;
+    protected bool $repairModified = false;
 
     public function run(array $argv): int
     {
@@ -40,6 +41,7 @@ final class Application
         $this->dryRun = $this->options->hasAny(['--dry-run', '--pretend']);
         $this->force = $this->options->has('--force');
         $this->blank = $this->options->hasAny(['--blank', '-b']);
+        $this->repairModified = $this->options->has('--modified');
 
         try {
             $this->handle();
@@ -462,22 +464,46 @@ final class Application
     protected function repair(Migrator $migrator): void
     {
         $missing = $migrator->missing();
+        $modified = $this->repairModified
+            ? $migrator->modified()
+            : [];
 
         echo Console::bold("Migraw Repair\n\n");
 
-        if ($missing === []) {
-            echo "No missing migrations found.\n";
+        if ($missing === [] && $modified === []) {
+            echo $this->repairModified
+                ? "No missing or modified migrations found.\n"
+                : "No missing migrations found.\n";
+
             return;
         }
 
-        echo Console::yellow("Missing migrations:\n\n");
+        if ($missing !== []) {
+            echo Console::yellow("Missing migrations:\n\n");
 
-        foreach ($missing as $migration) {
-            echo "  - {$migration}\n";
+            foreach ($missing as $migration) {
+                echo "  - {$migration}\n";
+            }
+
+            echo "\n";
+        }
+
+        if ($modified !== []) {
+            echo Console::yellow("Modified migrations:\n\n");
+
+            foreach ($modified as $migration) {
+                echo "  - {$migration}\n";
+            }
+
+            echo "\n";
         }
 
         if (! $this->force) {
-            echo Console::bold("\nRemove these records from the migration repository? [y/N]: ");
+            $question = $this->repairModified
+                ? 'Repair these migration records? [y/N]: '
+                : 'Remove missing records from the migration repository? [y/N]: ';
+
+            echo Console::bold($question);
 
             $answer = trim((string) fgets(STDIN));
 
@@ -487,7 +513,16 @@ final class Application
             }
         }
 
-        $removed = $migrator->repair();
+        $removed = [];
+        $updated = [];
+
+        if ($missing !== []) {
+            $removed = $migrator->repair();
+        }
+
+        if ($this->repairModified && $modified !== []) {
+            $updated = $migrator->repairModified();
+        }
 
         echo "\n";
 
@@ -495,8 +530,19 @@ final class Application
             echo Console::green("Removed: {$migration}\n");
         }
 
+        foreach ($updated as $migration) {
+            echo Console::green("Updated checksum: {$migration}\n");
+        }
+
         echo "\n";
-        echo Console::green(count($removed) . " record(s) removed.\n");
+
+        if ($removed !== []) {
+            echo Console::green(count($removed) . " missing record(s) removed.\n");
+        }
+
+        if ($updated !== []) {
+            echo Console::green(count($updated) . " checksum(s) updated.\n");
+        }
     }
 
     protected function unknownCommand(string $command): void
@@ -518,7 +564,7 @@ Usage:
   migraw rollback|down [--dry-run|--pretend]
   migraw reset [--dry-run|--pretend]
   migraw fresh [--dry-run|--pretend]
-  migraw repair [--force]
+  migraw repair [--modified] [--force]
   migraw status
   migraw validate
   migraw doctor
@@ -540,6 +586,7 @@ Options:
   -b, --blank       Generate a blank migration stub
   --dry-run         Show SQL without executing it
   --pretend         Alias of --dry-run
+  --modified        Also repair modified migration checksums
   --force           Force supported operations
 
 TXT;
