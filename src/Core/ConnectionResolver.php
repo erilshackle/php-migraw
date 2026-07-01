@@ -63,10 +63,10 @@ final class ConnectionResolver
             ),
             
             'sqlsrv' => sprintf(
-                'sqlsrv:Server=%s;port=%s;Database=%s',
+                'sqlsrv:Server=%s;Database=%s',
                 $connection['host'] ?? '127.0.0.1',
-                $connection['port'] ?? '3306',
                 $connection['database'] ?? '',
+                // $connection['port'] ?? '1433',
             ),
 
             default => throw new RuntimeException("Unsupported database driver: {$driver}"),

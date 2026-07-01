@@ -512,7 +512,7 @@ final class Application
 Migraw
 
 Usage:
-  migraw init[:mysql|:pgsql|:sqlite] [--force]
+  migraw init[:mysql|:pgsql|:sqlite][:sqlsrv] [--force]
   migraw make|new <name> [--blank|-b]
   migraw migrate|up [--dry-run|--pretend]
   migraw rollback|down [--dry-run|--pretend]

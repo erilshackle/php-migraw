@@ -96,6 +96,19 @@ PHP,
     ]
 PHP,
 
+
+            'sqlsrv' => <<<'PHP'
+'connection' => [
+        'driver' => $_ENV['DB_CONNECTION'] ?? 'sqlsrv',
+
+        'host' => $_ENV['DB_HOST'] ?? 'localhost',
+        'port' => $_ENV['DB_PORT'] ?? '1433',
+        'database' => $_ENV['DB_DATABASE'] ?? '',
+        'username' => $_ENV['DB_USERNAME'] ?? 'sa',
+        'password' => $_ENV['DB_PASSWORD'] ?? '',
+    ]
+PHP,
+
             default => <<<'PHP'
 'connection' => [
         'driver' => $_ENV['DB_CONNECTION'] ?? 'mysql',
