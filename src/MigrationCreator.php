@@ -31,7 +31,7 @@ class MigrationCreator
         }
 
         [$up, $down] = $blank
-            ? $this->rawSqlTemplate()
+            ? $this->rawSqlTemplate($blank)
             : $this->resolveTemplate($name);
 
         file_put_contents($path, $this->stub($up, $down));
@@ -267,29 +267,31 @@ SQL,
         return strtolower($this->driver);
     }
 
-    protected function rawSqlTemplate(): array
+    protected function rawSqlTemplate($newBlank = false): array
     {
         return [
-            $this->sqlBlock('-- Write your UP SQL here'),
-            $this->sqlBlock('-- Write your DOWN SQL here'),
+            $this->sqlBlock('-- Write your UP SQL here', $newBlank),
+            $this->sqlBlock('-- Write your DOWN SQL here', $newBlank),
         ];
     }
 
-    protected function sqlBlock(string $sql): string
+    protected function sqlBlock(string $sql, $newMode = false): string
     {
         $sql = trim($sql);
 
-        // return <<<PHP
-        // \$this->raw(<<<SQL
-        //         {$sql}
-        //         SQL)
-        // PHP;
-
-        return <<<PHP
-        <<<SQL
-                {$sql}
-                SQL
-        PHP;
+        if ($newMode) {
+            return <<<PHP
+            \$this->raw(<<<SQL
+                    {$sql}
+                    SQL)
+            PHP;
+        } else {
+            return <<<PHP
+            <<<SQL
+                    {$sql}
+                    SQL
+            PHP;
+        }
     }
 
     protected function stub(string $up, string $down): string
