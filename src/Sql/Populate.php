@@ -71,6 +71,44 @@ final class Populate implements SqlStatement
         $this->validateColumns();
     }
 
+
+
+    /**
+     * Define the columns updated when an existing row is found.
+     *
+     * Calling this method replaces the update columns previously supplied through
+     * the constructor or through an earlier update() call.
+     *
+     * Examples:
+     *
+     * ```
+     * Sql::populate('roles', $rows, 'slug')
+     *     ->update('name');
+     * ```
+     *
+     * ```
+     * Sql::populate('roles', $rows, 'slug')
+     *     ->update(['name', 'description']);
+     * ```
+     *
+     * @param string|array<int,string> $columns Columns updated on conflict.
+     *
+     * @return static
+     */
+    public function update(string|array $columns): static
+    {
+        $this->updateColumns = $this->normalizeColumns(
+            $columns,
+            'Update columns'
+        );
+
+        $this->validateColumns();
+
+        return $this;
+    }
+
+
+
     /**
      * Convert the population statement to SQL.
      *
@@ -130,8 +168,8 @@ final class Populate implements SqlStatement
 
         if ($this->updateColumns !== []) {
             $updates = array_map(
-                fn (string $column): string =>
-                    $this->quoteIdentifier($column, 'mysql')
+                fn(string $column): string =>
+                $this->quoteIdentifier($column, 'mysql')
                     . ' = VALUES('
                     . $this->quoteIdentifier($column, 'mysql')
                     . ')',
@@ -192,8 +230,8 @@ final class Populate implements SqlStatement
         $conflictColumns = implode(
             ', ',
             array_map(
-                fn (string $column): string =>
-                    $this->quoteIdentifier($column, $driver),
+                fn(string $column): string =>
+                $this->quoteIdentifier($column, $driver),
                 $this->uniqueBy
             )
         );
@@ -205,8 +243,8 @@ final class Populate implements SqlStatement
         }
 
         $updates = array_map(
-            fn (string $column): string =>
-                $this->quoteIdentifier($column, $driver)
+            fn(string $column): string =>
+            $this->quoteIdentifier($column, $driver)
                 . ' = EXCLUDED.'
                 . $this->quoteIdentifier($column, $driver),
             $this->updateColumns
@@ -235,8 +273,8 @@ final class Populate implements SqlStatement
         $columns = implode(
             ', ',
             array_map(
-                fn (string $column): string =>
-                    $this->quoteIdentifier($column, $driver),
+                fn(string $column): string =>
+                $this->quoteIdentifier($column, $driver),
                 $this->columns
             )
         );
@@ -398,7 +436,7 @@ final class Populate implements SqlStatement
             } elseif ($columns !== $expectedColumns) {
                 throw new InvalidArgumentException(
                     "Populate row {$index} must contain the same columns "
-                    . 'in the same order as the first row.'
+                        . 'in the same order as the first row.'
                 );
             }
 
@@ -542,8 +580,8 @@ final class Populate implements SqlStatement
         return implode(
             '.',
             array_map(
-                fn (string $part): string =>
-                    $this->quoteIdentifier($part, $driver),
+                fn(string $part): string =>
+                $this->quoteIdentifier($part, $driver),
                 explode('.', $identifier)
             )
         );
