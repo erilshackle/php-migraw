@@ -205,6 +205,19 @@ class MigrationRepository
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 
+    public function getRanForRollback(): array
+    {
+        $this->ensureTableExists();
+
+        $stmt = $this->pdo->query("
+        SELECT migration
+        FROM {$this->table}
+        ORDER BY batch DESC, migration DESC
+    ");
+
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
     /**
      * Return migration names from the latest batch.
      *

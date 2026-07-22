@@ -320,18 +320,35 @@ class Migrator
     /**
      * Roll back all executed migrations.
      *
+     * Foreign key checks are temporarily suspended because every migration managed
+     * by Migraw is expected to be removed.
+     *
      * @return string[] Rolled back migration names.
      */
     public function reset(): array
     {
+        return $this->withoutForeignKeyChecks(
+            fn(): array => $this->performReset()
+        );
+    }
+
+    /**
+     * Perform the actual reset operation.
+     *
+     * @return string[] Rolled back migration names.
+     */
+    protected function performReset(): array
+    {
         $files = $this->getMigrationFiles();
-        $ran = array_reverse($this->repository->getRan());
+        $ran = $this->repository->getRanForRollback();
 
         $rolledBack = [];
 
         foreach ($ran as $migrationName) {
             if (! isset($files[$migrationName])) {
-                throw new RuntimeException("Migration file not found: {$migrationName}");
+                throw new RuntimeException(
+                    "Migration file not found: {$migrationName}"
+                );
             }
 
             $migration = $this->loadMigration($files[$migrationName]);
@@ -421,6 +438,77 @@ class Migrator
     }
 
     /**
+     * Execute an operation while foreign key checks are temporarily disabled.
+     *
+     * Foreign key checks are always restored, including when the operation throws
+     * an exception.
+     *
+     * @template T
+     *
+     * @param callable(): T $callback
+     *
+     * @return T
+     */
+    protected function withoutForeignKeyChecks(callable $callback): mixed
+    {
+        if ($this->pretending) {
+            $disable = $this->disableForeignKeyChecksSql();
+            $enable = $this->enableForeignKeyChecksSql();
+
+            if ($disable !== null) {
+                $this->pretendedSql[] = $disable;
+            }
+
+            try {
+                return $callback();
+            } finally {
+                if ($enable !== null) {
+                    $this->pretendedSql[] = $enable;
+                }
+            }
+        }
+
+        $disable = $this->disableForeignKeyChecksSql();
+        $enable = $this->enableForeignKeyChecksSql();
+
+        if ($disable === null || $enable === null) {
+            return $callback();
+        }
+
+        $this->pdo->exec($disable);
+
+        try {
+            return $callback();
+        } finally {
+            $this->pdo->exec($enable);
+        }
+    }
+
+    /**
+     * Get the SQL used to disable foreign key checks.
+     */
+    protected function disableForeignKeyChecksSql(): ?string
+    {
+        return match ($this->driver) {
+            'mysql' => 'SET FOREIGN_KEY_CHECKS = 0',
+            'sqlite' => 'PRAGMA foreign_keys = OFF',
+            default => null,
+        };
+    }
+
+    /**
+     * Get the SQL used to enable foreign key checks.
+     */
+    protected function enableForeignKeyChecksSql(): ?string
+    {
+        return match ($this->driver) {
+            'mysql' => 'SET FOREIGN_KEY_CHECKS = 1',
+            'sqlite' => 'PRAGMA foreign_keys = ON',
+            default => null,
+        };
+    }
+
+    /**
      * Normalize a migration return value into SQL strings.
      *
      * @param string|array<int,string|SqlStatement>|SqlStatement $sql
@@ -458,6 +546,7 @@ class Migrator
     {
         $this->runSql($sql);
     }
+
 
     /**
      * Execute SQL statements or collect them during dry-run mode.
