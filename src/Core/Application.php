@@ -28,6 +28,7 @@ final class Application
     protected bool $force = false;
 
     protected bool $blank = false;
+    protected bool $populate = false;
     protected bool $repairModified = false;
 
     public function run(array $argv): int
@@ -40,6 +41,7 @@ final class Application
         $this->command = $this->options->command();
         $this->dryRun = $this->options->hasAny(['--dry-run', '--pretend']);
         $this->force = $this->options->has('--force');
+        $this->populate = $this->options->has('--populate');
         $this->blank = $this->options->hasAny(['--blank', '-b']);
         $this->repairModified = $this->options->has('--modified');
 
@@ -437,12 +439,25 @@ final class Application
             return;
         }
 
-        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($this->blank && $this->populate) {
+            throw new RuntimeException(
+                'The --blank and --populate options cannot be used together.'
+            );
+        }
+
+        $driver = (string) $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
 
         $creator = new MigrationCreator($path, $driver);
-        $file = $creator->create($name, $this->blank);
 
-        echo Console::green("Created migration: {$this->paths->relative($file)}\n");
+        $file = $creator->create(
+            name: $name,
+            blank: $this->blank,
+            populate: $this->populate
+        );
+
+        echo Console::green(
+            "Created migration: {$this->paths->relative($file)}\n"
+        );
     }
 
     protected function printPretendedSql(Migrator $migrator): void
@@ -559,7 +574,7 @@ Migraw
 
 Usage:
   migraw init[:mysql|:pgsql|:sqlite][:sqlsrv] [--force]
-  migraw make|new <name> [--blank|-b]
+  migraw make|new <name> [--blank|-b|--populate]
   migraw migrate|up [--dry-run|--pretend]
   migraw rollback|down [--dry-run|--pretend]
   migraw reset [--dry-run|--pretend]
@@ -584,6 +599,7 @@ Commands:
 
 Options:
   -b, --blank       Generate a blank migration stub
+  --populate        Generate a PopulatorMigration
   --dry-run         Show SQL without executing it
   --pretend         Alias of --dry-run
   --modified        Also repair modified migration checksums

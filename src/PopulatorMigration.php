@@ -29,34 +29,4 @@ abstract class PopulatorMigration extends Migration
     {
         return [];
     }
-
-    /**
-     * Create an idempotent data population statement.
-     *
-     * Existing records are detected through a PRIMARY KEY or UNIQUE constraint
-     * corresponding to `$uniqueBy`.
-     *
-     * When `$updateColumns` is empty, conflicting records remain unchanged.
-     * Otherwise, only the specified columns are updated.
-     *
-     * @param string                         $table Target table.
-     * @param array<int,array<string,mixed>> $rows Rows to populate.
-     * @param string|array<int,string>       $uniqueBy Conflict columns.
-     * @param array<int,string>              $updateColumns Columns updated on conflict.
-     *
-     * @return Populate
-     */
-    final protected function populate(
-        string $table,
-        array $rows,
-        string|array $uniqueBy,
-        array $updateColumns = []
-    ): Populate {
-        return Sql::populate(
-            $table,
-            $rows,
-            $uniqueBy,
-            $updateColumns
-        );
-    }
 }

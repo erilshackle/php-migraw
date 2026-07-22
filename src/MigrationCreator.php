@@ -14,8 +14,29 @@ class MigrationCreator
         protected string $driver = 'mysql'
     ) {}
 
-    public function create(string $name, bool $blank = false): string
+    /**
+     * Create a new migration file.
+     *
+     * By default, Migraw tries to generate a smart SQL template based on
+     * the migration name.
+     *
+     * When $blank is true, a blank raw SQL migration is generated.
+     * When $populate is true, a PopulatorMigration is generated.
+     *
+     * @param string $name     Migration name.
+     * @param bool   $blank    Whether to generate a blank raw SQL migration.
+     * @param bool   $populate Whether to generate a population migration.
+     *
+     * @return string Created migration file path.
+     */
+    public function create(string $name, bool $blank = false, bool $populate = false): string
     {
+        if ($blank && $populate) {
+            throw new RuntimeException(
+                'A migration cannot be both blank and populate.'
+            );
+        }
+
         if (! is_dir($this->path)) {
             mkdir($this->path, 0775, true);
         }
@@ -30,11 +51,23 @@ class MigrationCreator
             throw new RuntimeException("Migration already exists: {$path}");
         }
 
-        [$up, $down] = $blank
-            ? $this->rawSqlTemplate($blank)
-            : $this->resolveTemplate($name);
+        $contents = match (true) {
+            $populate => $this->populateStub(),
 
-        file_put_contents($path, $this->stub($up, $down));
+            $blank => $this->migrationStub(
+                ...$this->rawSqlTemplate()
+            ),
+
+            default => $this->migrationStub(
+                ...$this->resolveTemplate($name)
+            ),
+        };
+
+        if (file_put_contents($path, $contents) === false) {
+            throw new RuntimeException(
+                "Unable to create migration file: {$path}"
+            );
+        }
 
         return $path;
     }
@@ -294,7 +327,15 @@ SQL,
         }
     }
 
-    protected function stub(string $up, string $down): string
+    /**
+     * Build a standard migration file.
+     *
+     * @param string $up   Up method return expression.
+     * @param string $down Down method return expression.
+     *
+     * @return string
+     */
+    protected function migrationStub(string $up, string $down): string
     {
         return <<<PHP
 <?php
@@ -312,6 +353,39 @@ return new class extends Migration
     public function down(): string|array|SqlStatement
     {
         return {$down};
+    }
+};
+
+PHP;
+    }
+
+    /**
+     * Build a population migration file.
+     *
+     * The generated migration intentionally omits down(), because
+     * PopulatorMigration provides an empty rollback by default.
+     *
+     * @return string
+     */
+    protected function populateStub(): string
+    {
+        return <<<'PHP'
+<?php
+
+use Eril\Migraw\PopulatorMigration;
+use Eril\Migraw\Sql\SqlStatement;
+
+return new class extends PopulatorMigration
+{
+    public function up(): string|array|SqlStatement
+    {
+        return $this->populate(
+            table: '',
+            rows: [
+                //
+            ],
+            uniqueBy: 'id'
+        );
     }
 };
 

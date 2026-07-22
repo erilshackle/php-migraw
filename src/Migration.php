@@ -5,6 +5,7 @@ namespace Eril\Migraw;
 use Eril\Migraw\Sql\AlterTable;
 use Eril\Migraw\Sql\CreateTable;
 use Eril\Migraw\Sql\DropTable;
+use Eril\Migraw\Sql\Populate;
 use Eril\Migraw\Sql\RawSql;
 use Eril\Migraw\Sql\RenameTable;
 use Eril\Migraw\Sql\SqlStatement;
@@ -101,5 +102,36 @@ abstract class Migration
     final protected function rename(string $table): RenameTable
     {
         return new RenameTable($table);
+    }
+
+
+    /**
+     * Create an idempotent data population statement.
+     *
+     * Existing records are detected through a PRIMARY KEY or UNIQUE constraint
+     * corresponding to `$uniqueBy`.
+     *
+     * When `$updateColumns` is empty, conflicting records remain unchanged.
+     * Otherwise, only the specified columns are updated.
+     *
+     * @param string                         $table Target table.
+     * @param array<int,array<string,mixed>> $rows Rows to populate.
+     * @param string|array<int,string>       $uniqueBy Conflict columns.
+     * @param array<int,string>              $updateColumns Columns updated on conflict.
+     *
+     * @return Populate
+     */
+    final protected function populate(
+        string $table,
+        array $rows,
+        string|array $uniqueBy,
+        array $updateColumns = []
+    ): Populate {
+        return new Populate(
+            $table,
+            $rows,
+            $uniqueBy,
+            $updateColumns
+        );
     }
 }
