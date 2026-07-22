@@ -57,4 +57,34 @@ final class Sql
     {
         return new RenameTable($table);
     }
+
+    /**
+     * Create an idempotent data population statement.
+     *
+     * Existing records are detected through a PRIMARY KEY or UNIQUE constraint
+     * corresponding to the columns passed in `$uniqueBy`.
+     *
+     * When `$updateColumns` is empty, existing rows remain unchanged. Otherwise,
+     * the selected columns are updated with the incoming values.
+     *
+     * @param string                         $table Target table.
+     * @param array<int,array<string,mixed>> $rows Rows to populate.
+     * @param string|array<int,string>       $uniqueBy Conflict columns.
+     * @param array<int,string>              $updateColumns Columns updated on conflict.
+     *
+     * @return Populate
+     */
+    public static function populate(
+        string $table,
+        array $rows,
+        string|array $uniqueBy,
+        array $updateColumns = []
+    ): Populate {
+        return new Populate(
+            $table,
+            $rows,
+            $uniqueBy,
+            $updateColumns
+        );
+    }
 }

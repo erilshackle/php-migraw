@@ -534,6 +534,7 @@ class Migrator
 
         return $result;
     }
+    
 
     /**
      * Execute statements directly.
