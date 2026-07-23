@@ -42,7 +42,7 @@ final class Application
         $this->dryRun = $this->options->hasAny(['--dry-run', '--pretend']);
         $this->force = $this->options->has('--force');
         $this->populate = $this->options->has('--populate');
-        $this->blank = $this->options->hasAny(['--blank', '-b']);
+        $this->blank = $this->options->hasAny(['--blank']);
         $this->repairModified = $this->options->has('--modified');
 
         try {
@@ -104,7 +104,7 @@ final class Application
             'doctor' => $this->doctor($config, $pdo, $path, $repository),
             'reset' => $this->resetMigrations($migrator),
             'fresh' => $this->fresh($migrator),
-            'make', 'new' => $this->make($path, $this->options->migrationName(), $pdo),
+            'make'  => $this->make($path, $this->options->migrationName(), $pdo),
             'repair' => $this->repair($migrator),
             'help', '--help', '-h' => $this->help(),
             default => $this->unknownCommand((string) $this->command),
@@ -237,14 +237,14 @@ final class Application
 
         foreach ($rows as $row) {
             $status = match ($row['status']) {
-                'ran' => Console::green('[ran]'),
-                'pending' => Console::yellow('[pending]'),
-                'modified' => Console::red('[modified]'),
-                'missing' => Console::red('[missing]'),
-                default => "[{$row['status']}]",
+                'ran'      => Console::green('[ran]'),
+                'pending'  => Console::yellow('[pending]'),
+                'modified' => Console::yellow('[ran modified]'),
+                'missing'  => Console::red('[missing]'),
+                default    => "[{$row['status']}]",
             };
 
-            printf("%-14s %s\n", $status, $row['migration']);
+            printf("%-24s %s\n", $status, $row['migration']);
         }
     }
 
@@ -573,8 +573,8 @@ final class Application
 Migraw
 
 Usage:
-  migraw init[:mysql|:pgsql|:sqlite][:sqlsrv] [--force]
-  migraw make|new <name> [--blank|-b|--populate]
+  migraw init[:mysql|:pgsql|:sqlite] [--force]
+  migraw make|new <name> [--populate]
   migraw migrate|up [--dry-run|--pretend]
   migraw rollback|down [--dry-run|--pretend]
   migraw reset [--dry-run|--pretend]
@@ -587,7 +587,7 @@ Usage:
 
 Commands:
   init              Create the default migraw.php config file
-  make, new         Create a new migration file
+  make              Create a new migration file
   migrate, up       Run pending migrations
   rollback, down    Rollback the last migration batch
   reset             Rollback all executed migrations
@@ -598,7 +598,6 @@ Commands:
   doctor            Check configuration and environment
 
 Options:
-  -b, --blank       Generate a blank migration stub
   --populate        Generate a PopulatorMigration
   --dry-run         Show SQL without executing it
   --pretend         Alias of --dry-run

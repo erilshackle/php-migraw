@@ -9,6 +9,13 @@
 ### Changed
 - Add rollback support with foreign key checks management
 
+### Deprecated
+- deprecate command option `--blank` but still functional
+
+### Removed
+- command `new` (alias of `make`)
+- command option `-b` alias of `--blank`
+
 
 ## [1.1.0] - 2026-07-01
 ### Added

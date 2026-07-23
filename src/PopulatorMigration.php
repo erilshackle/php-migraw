@@ -2,28 +2,40 @@
 
 namespace Eril\Migraw;
 
-use Eril\Migraw\Sql\Populate;
-use Eril\Migraw\Sql\Sql;
+use Eril\Migraw\Sql\SqlStatement;
 
 /**
- * Base class for migrations that populate required application data.
+ * Base class for idempotent data population migrations.
  *
- * Populator migrations participate in the normal Migraw migration history,
- * batching and status flow. Their populated data is preserved during rollback
- * by default.
- *
- * Override down() when the inserted data can be safely removed.
+ * Population migrations participate in the normal migration lifecycle,
+ * but do not remove populated data during rollback by default.
  */
 abstract class PopulatorMigration extends Migration
 {
     /**
-     * Preserve populated data during rollback by default.
+     * Define the statements used to populate the database.
      *
-     * The migration record is still removed from the repository, allowing the
-     * populator to run again on a future migrate operation. For that reason,
-     * population statements should always be idempotent.
+     * @return string|SqlStatement|array<int, string|SqlStatement>
+     */
+    abstract public function population(): string|SqlStatement|array;
+
+    /**
+     * Return the population statements to the migrator.
      *
-     * @return array<int,never>
+     * @return string|SqlStatement|array<int, string|SqlStatement>
+     */
+    final public function up(): string|SqlStatement|array
+    {
+        return $this->population();
+    }
+
+    /**
+     * Population migrations preserve their data during rollback.
+     *
+     * Rollback only removes the migration record, allowing the
+     * population migration to be executed again later.
+     *
+     * @return array<int, string|SqlStatement>
      */
     public function down(): array
     {

@@ -377,7 +377,7 @@ use Eril\Migraw\Sql\SqlStatement;
 
 return new class extends PopulatorMigration
 {
-    public function up(): string|array|SqlStatement
+    public function population(): string|array|SqlStatement
     {
         return $this->populate(
             table: '',
