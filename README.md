@@ -8,6 +8,11 @@ Migraw is a lightweight migration tool that embraces SQL instead of hiding it.
 
 Write raw SQL when you need complete control, generate smart SQL templates from migration names, use lightweight schema helpers for common operations, and populate essential data idempotently.
 
+[![Latest Version](https://img.shields.io/packagist/v/eril/migraw.svg)](https://packagist.org/packages/eril/migraw)
+[![Tests](https://img.shields.io/github/actions/workflow/status/erilshackle/php-migraw/tests.yml?branch=main&label=tests)](https://github.com/eril/migraw/actions)
+[![PHP Version](https://img.shields.io/packagist/php-v/eril/migraw)](https://packagist.org/packages/eril/migraw)
+[![License](https://img.shields.io/packagist/l/eril/migraw)](LICENSE)
+
 ---
 
 ## Features
