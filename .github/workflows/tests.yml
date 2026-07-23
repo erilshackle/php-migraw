@@ -10,7 +10,7 @@ on:
 
 jobs:
   tests:
-    name: PHP ${{ matrix.php-version }}
+    name: Tests · PHP ${{ matrix.php-version }}
 
     runs-on: ubuntu-latest
 
@@ -21,6 +21,7 @@ jobs:
           - '8.2'
           - '8.3'
           - '8.4'
+          - '8.5'
 
     steps:
       - name: Checkout
@@ -32,6 +33,7 @@ jobs:
           php-version: ${{ matrix.php-version }}
           extensions: pdo, pdo_sqlite
           coverage: none
+          tools: composer
 
       - name: Validate composer.json
         run: composer validate --strict
@@ -41,3 +43,29 @@ jobs:
 
       - name: Run tests
         run: composer test
+    
+  quality:
+      name: Code quality
+      
+      runs-on: ubuntu-latest
+
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+
+        - name: Setup PHP 
+          uses: shivammathur/setup-php@v2 
+          with: 
+            php-version: '8.5' 
+            extensions: pdo, pdo_sqlite 
+            coverage: none 
+            tools: composer
+
+        - name: Validate composer.json
+          run: composer validate --strict
+
+        - name: Install dependencies 
+          run: composer install --prefer-dist --no-progress --no-interaction
+
+        - name: Run static analysis 
+          run: composer analyse

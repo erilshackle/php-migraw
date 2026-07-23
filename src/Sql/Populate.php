@@ -391,7 +391,7 @@ final class Populate implements SqlStatement
      *
      * Every row must contain exactly the same columns in the same order.
      *
-     * @param array<int,array<string,mixed>> $rows Rows to normalize.
+     * @param array<int,mixed> $rows Rows to normalize.
      *
      * @return array<int,array<string,mixed>>
      */
@@ -407,21 +407,8 @@ final class Populate implements SqlStatement
         $expectedColumns = null;
 
         foreach ($rows as $index => $row) {
-            if (! is_array($row) || $row === []) {
-                throw new InvalidArgumentException(
-                    "Populate row {$index} must be a non-empty associative array."
-                );
-            }
-
-            if (array_is_list($row)) {
-                throw new InvalidArgumentException(
-                    "Populate row {$index} must use column names as keys."
-                );
-            }
-
-            $columns = array_keys($row);
-
-            foreach ($columns as $column) {
+           
+            foreach ($row as $column => $_) {
                 if (! is_string($column)) {
                     throw new InvalidArgumentException(
                         "Populate row {$index} contains an invalid column name."
@@ -430,6 +417,8 @@ final class Populate implements SqlStatement
 
                 $this->validateIdentifier($column, 'Column name');
             }
+
+            $columns = array_keys($row);
 
             if ($expectedColumns === null) {
                 $expectedColumns = $columns;
@@ -449,7 +438,7 @@ final class Populate implements SqlStatement
     /**
      * Normalize a column argument.
      *
-     * @param string|array<int,string> $columns Columns.
+     * @param string|array<int,mixed> $columns Columns.
      * @param string                   $label Validation label.
      * @param bool                     $allowEmpty Whether an empty list is allowed.
      *
