@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests;
+namespace Eril\Migraw\Tests;
 
 use Eril\Migraw\MigrationCreator;
 use PHPUnit\Framework\TestCase;

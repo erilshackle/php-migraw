@@ -4,17 +4,36 @@
 
 ## [1.2.0] - 2026-07-22
 ### Added
-- Implement PopulatorMigration and Populate classes
+- Added idempotent data population through `Populate`
+- Added population migration templates with the `--populate` option.
+- Added conflict handling for MySQL, MariaDB, PostgreSQL and SQLite.
+- Added support for updating selected columns when populated rows already exist.
+- Added modified migration detection in the `status` command.
+- Added repair `--modified` to accept the current checksum of intentionally
+- Added PHP 8.5 to the CI test matrix.
 
 ### Changed
 - Add rollback support with foreign key checks management
+- Changed unknown migration templates to generate wrapped raw SQL statements.
+- Changed refresh to roll back all managed migrations and run them again.
+- Improved migration creator templates and validation.
+- Improved the test workflow by separating tests and code-quality checks.
 
 ### Deprecated
 - deprecate command option `--blank` but still functional
 
+### Fixed
+- Fixed raw migration fallback generation so unknown migration names use `$this->raw(...)`.
+- Fixed incorrect `fresh` behavior that previously acted like `refresh`.
+- Fixed static-analysis type declarations in `Populate`.
+- Fixed driver-specific SQL expectations for quoted identifiers
+
 ### Removed
-- command `new` (alias of `make`)
-- command option `-b` alias of `--blank`
+- Removed command `new` (alias of `make`)
+- Removed command option `-b` alias of `--blank`
+
+### Security
+- Added migration checksum tracking.
 
 
 ## [1.1.0] - 2026-07-01

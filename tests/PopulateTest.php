@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Sql;
+namespace Eril\Migraw\Tests;
 
 use Eril\Migraw\Sql\Populate;
 use Eril\Migraw\Sql\Sql;

@@ -2,7 +2,6 @@
 
 namespace Eril\Migraw\Tests;
 
-use Eril\Migraw\Migration;
 use Eril\Migraw\MigrationRepository;
 use Eril\Migraw\Migrator;
 use PDO;
