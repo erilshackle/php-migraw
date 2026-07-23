@@ -1,6 +1,7 @@
 composer.phar
 /vendor/
 /.phpunit.cache
+/var/
 /database/migrations
 composer.lock
 .env

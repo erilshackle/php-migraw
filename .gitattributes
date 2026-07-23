@@ -11,6 +11,7 @@
 
 /README.dev.md export-ignore
 /.env export-ignore
+/var/ export-ignore
 /.env.example export-ignore
 /CHANGELOG.md export-ignore
 
