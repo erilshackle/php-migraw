@@ -104,6 +104,7 @@ final class Application
             'doctor' => $this->doctor($config, $pdo, $path, $repository),
             'reset' => $this->resetMigrations($migrator),
             'fresh' => $this->fresh($migrator),
+            'refresh' => $this->refresh($migrator),
             'make'  => $this->make($path, $this->options->migrationName(), $pdo),
             'repair' => $this->repair($migrator),
             'help', '--help', '-h' => $this->help(),
@@ -203,17 +204,41 @@ final class Application
         }
     }
 
+    /**
+     * Drop every database table and run all migrations again.
+     */
     protected function fresh(Migrator $migrator): void
     {
         $result = $migrator->fresh();
 
-        if ($result['rolled_back'] === [] && $result['migrated'] === []) {
+        if ($result['dropped'] === [] && $result['migrated'] === []) {
             echo "Nothing to fresh.\n";
             return;
         }
 
+        foreach ($result['dropped'] as $table) {
+            echo Console::yellow("Dropped table: {$table}\n");
+        }
+
+        foreach ($result['migrated'] as $migration) {
+            echo Console::green("Migrated: {$migration}\n");
+        }
+    }
+
+    /**
+     * Roll back all managed migrations and run them again.
+     */
+    protected function refresh(Migrator $migrator): void
+    {
+        $result = $migrator->refresh();
+
         if ($this->dryRun) {
             $this->printPretendedSql($migrator);
+            return;
+        }
+
+        if ($result['rolled_back'] === [] && $result['migrated'] === []) {
+            echo "Nothing to refresh.\n";
             return;
         }
 

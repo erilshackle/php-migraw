@@ -366,17 +366,40 @@ class Migrator
     }
 
     /**
-     * Safely recreate the schema by resetting managed migrations and running
-     * them again.
-     *
-     * This does not drop unknown database tables.
+     * Roll back all managed migrations and run them again.
      *
      * @return array{rolled_back:string[],migrated:string[]}
      */
-    public function fresh(): array
+    public function refresh(): array
     {
         return [
             'rolled_back' => $this->reset(),
+            'migrated' => $this->migrate(),
+        ];
+    }
+
+    /**
+     * Drop all database tables and run all migrations again.
+     *
+     * Migration down() methods are not executed.
+     *
+     * @return array{dropped:string[],migrated:string[]}
+     */
+    public function fresh(): array
+    {
+        if ($this->pretending) {
+            throw new RuntimeException(
+                'Fresh dry-run is not currently supported.'
+            );
+        }
+
+        $dropped = (new DatabaseCleaner($this->pdo))
+            ->dropAllTables();
+
+        $this->repository = new MigrationRepository($this->pdo);
+
+        return [
+            'dropped' => $dropped,
             'migrated' => $this->migrate(),
         ];
     }
@@ -534,7 +557,7 @@ class Migrator
 
         return $result;
     }
-    
+
 
     /**
      * Execute statements directly.
