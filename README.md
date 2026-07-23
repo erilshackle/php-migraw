@@ -6,7 +6,7 @@ SQL-first migrations for PHP.
 
 Migraw is a lightweight migration tool that embraces SQL instead of hiding it.
 
-Write raw SQL when you need complete control, generate smart SQL templates to get started quickly, or use the optional schema builder for common table operations.
+Write raw SQL when you need complete control, generate smart SQL templates from migration names, use lightweight schema helpers for common operations, and populate essential data idempotently.
 
 ---
 
@@ -14,13 +14,17 @@ Write raw SQL when you need complete control, generate smart SQL templates to ge
 
 * SQL-first migrations
 * Raw SQL support
-* Lightweight schema builder
 * Smart migration templates
-* MySQL, MariaDB, PostgreSQL and SQLite support
-* Driver-aware schema helpers
+* Lightweight schema helpers
+* Idempotent data population
+* MySQL and MariaDB support
+* PostgreSQL support
+* SQLite support
 * Migration batches
 * Rollback support
 * Dry-run mode
+* Migration validation
+* Modified migration detection
 * Interactive CLI
 * PDO or callable connection
 * Framework agnostic
@@ -44,12 +48,11 @@ Generate the default configuration:
 php vendor/bin/migraw init
 ```
 
-or choose a specific driver:
+Or choose a specific database driver:
 
 ```bash
 php vendor/bin/migraw init:mysql
 php vendor/bin/migraw init:pgsql
-php vendor/bin/migraw init:sqlsrv
 php vendor/bin/migraw init:sqlite
 ```
 
@@ -66,17 +69,15 @@ database/
 
 ## Configuration
 
-Using a connection array:
+### Connection array
 
 ```php
 <?php
 
 return [
-
     'path' => 'database/migrations',
 
     'connection' => [
-
         'driver' => 'mysql',
 
         'host' => '127.0.0.1',
@@ -87,40 +88,41 @@ return [
         'password' => '',
 
         'charset' => 'utf8mb4',
-
     ],
-
 ];
 ```
 
-Or provide a PDO instance:
+### PDO instance
 
 ```php
-return [
+<?php
 
+return [
     'path' => 'database/migrations',
 
     'connection' => new PDO(...),
-
 ];
 ```
 
-Or a callable:
+### Callable connection
 
 ```php
+<?php
+
 return [
     'bootstrap' => 'bootstrap.php',
-    
+
     'path' => 'database/migrations',
 
     'connection' => static fn (): PDO => Database::connection(),
-
 ];
 ```
 
+The callable must return a `PDO` instance.
+
 ---
 
-## Creating a Migration
+## Creating Migrations
 
 Create a migration:
 
@@ -128,16 +130,47 @@ Create a migration:
 php vendor/bin/migraw make my_migration_name
 ```
 
-Example:
+Example output:
 
 ```text
 database/migrations/
 └── 20260627143000_my_migration_name.php
 ```
 
+Migraw examines the migration name and generates a suitable template when it recognizes a supported pattern.
+
 ---
 
-# Raw SQL
+## Smart Templates
+
+Migraw recognizes common migration names and generates corresponding SQL templates.
+
+| Migration name              | Generated SQL                                                   |
+| --------------------------- | --------------------------------------------------------------- |
+| `create_users_table`        | `CREATE TABLE users (...)`                                      |
+| `create_roles`              | `CREATE TABLE roles (...)`                                      |
+| `drop_users_table`          | `DROP TABLE users`                                              |
+| `rename_users_to_members`   | `RENAME TABLE users TO members`                                 |
+| `add_email_to_users`        | `ALTER TABLE users ADD COLUMN email ...`                        |
+| `remove_email_from_users`   | `ALTER TABLE users DROP COLUMN email`                           |
+| `create_users_email_index`  | `CREATE INDEX idx_users_email ON users(email)`                  |
+| `drop_users_email_index`    | `DROP INDEX idx_users_email`                                    |
+| `create_unique_users_email` | `ALTER TABLE users ADD CONSTRAINT uq_users_email UNIQUE(email)` |
+| `drop_unique_users_email`   | `ALTER TABLE users DROP CONSTRAINT uq_users_email`              |
+
+When no supported pattern matches, Migraw generates a blank raw SQL migration.
+
+Force a blank migration using plain SQL strings with `--sql`:
+
+```bash
+php vendor/bin/migraw make custom_database_change --sql
+```
+
+---
+
+## Raw SQL
+
+A raw SQL migration keeps the SQL completely explicit:
 
 ```php
 <?php
@@ -148,56 +181,36 @@ return new class extends Migration
 {
     public function up(): string
     {
-        return <<<SQL
-        -- Write your UP SQL here
-        SQL;
+        return $this->raw(<<<SQL
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(180) NOT NULL UNIQUE
+        )
+        SQL);
     }
 
     public function down(): string
     {
-        return <<<SQL
-        -- Write your DOWN SQL here
-        SQL;
+        return $this->raw(<<<SQL
+        DROP TABLE users
+        SQL);
     }
 };
 ```
-_Migraw will generate a smart SQL template when the migration name matches a known pattern._
+
+Raw SQL is useful when:
+
+* the database provides specialized syntax;
+* exact control over the generated statement is required;
+* a helper would make the operation less clear;
+* the migration cannot be represented by the available helpers.
 
 ---
-
-## Smart Templates
-
-Migraw recognizes common migration names and generates an appropriate SQL template.
-
-| Migration name | Generated SQL |
-|----------------|---------------|
-| `create_users_table` | `CREATE TABLE users (...)` |
-| `create_roles` | `CREATE TABLE roles (...)` |
-| `drop_users_table` | `DROP TABLE users` |
-| `rename_users_to_members` | `RENAME TABLE users TO members` |
-| `add_email_to_users` | `ALTER TABLE users ADD COLUMN email ...` |
-| `remove_email_from_users` | `ALTER TABLE users DROP COLUMN email` |
-| `create_users_email_index` | `CREATE INDEX idx_users_email ON users(email)` |
-| `drop_users_email_index` | `DROP INDEX idx_users_email` |
-| `create_unique_users_email` | `ALTER TABLE users ADD CONSTRAINT uq_users_email UNIQUE(email)` |
-| `drop_unique_users_email` | `ALTER TABLE users DROP CONSTRAINT uq_users_email` |
-
-_If no known pattern matches, Migraw generates a blank SQL migration instead._
-
-Use `--blank` or `-b` to force an empty raw SQL stub.
-
-```php
-return $this->raw(<<<SQL
-
--- Write here your sql
-
-SQL);
-```
-
----
-
 
 ## SQL Helpers
+
+Migraw provides lightweight helpers for common schema operations.
 
 ```php
 <?php
@@ -225,43 +238,213 @@ return new class extends Migration
 };
 ```
 
+The helpers do not attempt to replace SQL. They provide concise builders for frequent operations while preserving the generated SQL model.
+
 ---
 
 ## Multiple Statements
 
+A migration may return multiple statements:
+
 ```php
-public function up(): array
+<?php
+
+use Eril\Migraw\Migration;
+use Eril\Migraw\Sql\SqlStatement;
+
+return new class extends Migration
 {
-    return [
+    /**
+     * @return array<int, SqlStatement>
+     */
+    public function up(): array
+    {
+        return [
+            $this->create('roles')
+                ->id()
+                ->column('name VARCHAR(80) NOT NULL UNIQUE'),
 
-        $this->create('roles')
-            ->id()
-            ->column('name VARCHAR(80) NOT NULL UNIQUE'),
+            $this->create('users')
+                ->id()
+                ->column('role_id INT NOT NULL')
+                ->foreign('role_id', 'roles'),
+        ];
+    }
 
-        $this->create('users')
-            ->id()
-            ->column('role_id INT NOT NULL')
-            ->foreign('role_id', 'roles'),
-
-    ];
-}
+    /**
+     * @return array<int, SqlStatement>
+     */
+    public function down(): array
+    {
+        return [
+            $this->drop('users')->ifExists(),
+            $this->drop('roles')->ifExists(),
+        ];
+    }
+};
 ```
+
+Statements are executed in the order in which they are returned.
+
+Rollback statements should therefore normally appear in reverse dependency order.
+
+---
+
+## Populating Data
+
+Migraw can generate idempotent data-population migrations for essential application data.
+
+Create one with:
+
+```bash
+php vendor/bin/migraw make populate_roles --populate
+```
+
+Example:
+
+```php
+<?php
+
+use Eril\Migraw\PopulatorMigration;
+use Eril\Migraw\Sql\SqlStatement;
+
+return new class extends PopulatorMigration
+{
+    public function populate(): SqlStatement
+    {
+        return $this->populateRows(
+            'roles',
+            [
+                [
+                    'slug' => 'admin',
+                    'name' => 'Administrator',
+                    'active' => true,
+                ],
+                [
+                    'slug' => 'user',
+                    'name' => 'User',
+                    'active' => true,
+                ],
+            ],
+            uniqueBy: 'slug'
+        );
+    }
+};
+```
+
+The exact helper name should match the `PopulatorMigration` API in the installed version. A population statement can also be created directly through the SQL facade:
+
+```php
+<?php
+
+use Eril\Migraw\Migration;
+use Eril\Migraw\Sql\Sql;
+use Eril\Migraw\Sql\SqlStatement;
+
+return new class extends Migration
+{
+    public function up(): SqlStatement
+    {
+        return Sql::populate(
+            'roles',
+            [
+                [
+                    'slug' => 'admin',
+                    'name' => 'Administrator',
+                    'active' => true,
+                ],
+                [
+                    'slug' => 'user',
+                    'name' => 'User',
+                    'active' => true,
+                ],
+            ],
+            uniqueBy: 'slug'
+        );
+    }
+
+    public function down(): array
+    {
+        return [];
+    }
+};
+```
+
+### Updating existing rows
+
+By default, conflicting rows are preserved.
+
+Use `update()` to update selected columns when an existing row matches the unique key:
+
+```php
+return Sql::populate(
+    'roles',
+    [
+        [
+            'slug' => 'admin',
+            'name' => 'System Administrator',
+            'active' => true,
+        ],
+    ],
+    uniqueBy: 'slug'
+)->update([
+    'name',
+    'active',
+]);
+```
+
+Conflict detection requires a corresponding `PRIMARY KEY` or `UNIQUE` constraint in the database.
+
+### Composite conflict keys
+
+Multiple columns may identify a row:
+
+```php
+return Sql::populate(
+    'permissions',
+    $rows,
+    uniqueBy: [
+        'resource',
+        'action',
+    ]
+);
+```
+
+Population migrations should be used for deterministic data required by the application, such as:
+
+* roles;
+* permissions;
+* default statuses;
+* system configuration;
+* fixed lookup values.
+
+They are not intended to generate large volumes of development or demonstration data.
 
 ---
 
 ## Running Migrations
 
-Run pending migrations:
+Run all pending migrations:
 
 ```bash
 php vendor/bin/migraw migrate
+```
+
+Alias:
+
+```bash
 php vendor/bin/migraw up
 ```
 
-Rollback the last batch:
+Rollback the last migration batch:
 
 ```bash
 php vendor/bin/migraw rollback
+```
+
+Alias:
+
+```bash
 php vendor/bin/migraw down
 ```
 
@@ -271,7 +454,13 @@ Rollback every executed migration:
 php vendor/bin/migraw reset
 ```
 
-Rollback everything and migrate again:
+Rollback all migrations and execute them again:
+
+```bash
+php vendor/bin/migraw refresh
+```
+
+Drop the existing schema and run all migrations from a clean database:
 
 ```bash
 php vendor/bin/migraw fresh
@@ -295,34 +484,67 @@ Check configuration and environment:
 php vendor/bin/migraw doctor
 ```
 
-Remove missing migration records:
+---
+
+## Migration Status
+
+Display executed, pending, missing, or modified migrations:
+
+```bash
+php vendor/bin/migraw status
+```
+
+A modified executed migration may be reported as:
+
+```text
+[ran modified]
+```
+
+Migraw detects this by comparing the current migration checksum with the checksum recorded when the migration was executed.
+
+---
+
+## Repairing Migration Records
+
+Remove records whose migration files no longer exist:
 
 ```bash
 php vendor/bin/migraw repair
-php vendor/bin/migraw repair --modified # 
 ```
+
+Accept the current contents of executed migrations that were intentionally modified:
+
+```bash
+php vendor/bin/migraw repair --modified
+```
+
+The `--modified` option updates the stored checksums. It does not execute the changed migration again.
+
+Editing executed migrations is generally discouraged. Use this option only when the modification is intentional and every affected environment is understood.
 
 ---
 
 ## Dry Run
 
-Preview SQL without executing it:
+Preview migration SQL without executing it:
 
 ```bash
 php vendor/bin/migraw migrate --dry-run
 ```
 
-or
+Alias:
 
 ```bash
 php vendor/bin/migraw migrate --pretend
 ```
 
+Dry-run mode displays the planned operations without modifying the database or migration repository.
+
 ---
 
 ## Migration Philosophy
 
-Treat migrations as immutable.
+Treat executed migrations as immutable.
 
 Instead of editing an existing migration:
 
@@ -330,7 +552,7 @@ Instead of editing an existing migration:
 20260601_create_users_table.php
 ```
 
-create a new one:
+create a new migration:
 
 ```text
 20260601_create_users_table.php
@@ -338,7 +560,39 @@ create a new one:
 20260612_create_roles_table.php
 ```
 
-This keeps every environment synchronized and preserves migration history.
+This keeps environments synchronized and preserves migration history.
+
+`repair --modified` exists as a recovery and maintenance mechanism, not as the standard migration workflow.
+
+---
+
+## Commands
+
+| Command             | Description                                      |
+| ------------------- | ------------------------------------------------ |
+| `init`              | Generate the default configuration               |
+| `init:mysql`        | Generate a MySQL configuration                   |
+| `init:pgsql`        | Generate a PostgreSQL configuration              |
+| `init:sqlite`       | Generate an SQLite configuration                 |
+| `make <name>`       | Create a migration                               |
+| `migrate`           | Execute pending migrations                       |
+| `up`                | Alias for `migrate`                              |
+| `rollback`          | Roll back the last batch                         |
+| `down`              | Alias for `rollback`                             |
+| `reset`             | Roll back all migrations                         |
+| `refresh`           | Roll back and rerun all migrations               |
+| `fresh`             | Rebuild the database from a clean schema         |
+| `status`            | Display migration status                         |
+| `validate`          | Validate migration files                         |
+| `doctor`            | Check configuration and environment              |
+| `repair`            | Remove missing migration records                 |
+| `repair --modified` | Accept current checksums for modified migrations |
+
+Available command options may be displayed with:
+
+```bash
+php vendor/bin/migraw help
+```
 
 ---
 
@@ -350,11 +604,12 @@ Migraw is built around a simple idea:
 
 Instead of replacing SQL with a complex abstraction, Migraw keeps SQL visible and explicit.
 
-You choose the level of abstraction that best fits your project:
+Choose the level of abstraction that best fits each migration:
 
-- Raw SQL
-- Smart SQL templates
-- Lightweight SQL helpers
+* raw SQL;
+* smart migration templates;
+* lightweight SQL helpers;
+* idempotent data population.
 
 Nothing more.
 
@@ -362,7 +617,7 @@ Nothing more.
 
 ## Requirements
 
-* PHP 8.1+
+* PHP 8.2 or newer
 * PDO extension
 
 Supported databases:
@@ -372,12 +627,42 @@ Supported databases:
 * PostgreSQL
 * SQLite
 
+The appropriate PDO driver must be installed for the selected database.
+
+Examples:
+
+* `pdo_mysql` for MySQL and MariaDB;
+* `pdo_pgsql` for PostgreSQL;
+* `pdo_sqlite` for SQLite.
+
 ---
 
-## Testing
+## Development
+
+Install development dependencies:
+
+```bash
+composer install
+```
+
+Run the test suite:
 
 ```bash
 composer test
+```
+
+Run static analysis:
+
+```bash
+composer analyse
+```
+
+Run all configured project checks:
+
+```bash
+composer test
+composer analyse
+composer validate --strict
 ```
 
 ---
