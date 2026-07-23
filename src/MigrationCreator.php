@@ -17,23 +17,28 @@ class MigrationCreator
     /**
      * Create a new migration file.
      *
-     * By default, Migraw tries to generate a smart SQL template based on
-     * the migration name.
+     * By default, Migraw tries to generate a smart migration template
+     * whose SQL is wrapped in a RawSql statement.
      *
-     * When $blank is true, a blank raw SQL migration is generated.
+     * When $sql is true, a blank migration returning plain SQL strings
+     * is generated.
+     *
      * When $populate is true, a PopulatorMigration is generated.
      *
      * @param string $name     Migration name.
-     * @param bool   $blank    Whether to generate a blank raw SQL migration.
+     * @param bool   $sql      Whether to generate a blank plain-SQL migration.
      * @param bool   $populate Whether to generate a population migration.
      *
      * @return string Created migration file path.
      */
-    public function create(string $name, bool $blank = false, bool $populate = false): string
-    {
-        if ($blank && $populate) {
+    public function create(
+        string $name,
+        bool $sql = false,
+        bool $populate = false
+    ): string {
+        if ($sql && $populate) {
             throw new RuntimeException(
-                'A migration cannot be both blank and populate.'
+                'A migration cannot be both SQL and populate.'
             );
         }
 
@@ -45,17 +50,22 @@ class MigrationCreator
         $timestamp = date('Y_m_d_His');
 
         $filename = "{$timestamp}_{$name}.php";
-        $path = rtrim($this->path, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $filename;
+
+        $path = rtrim($this->path, DIRECTORY_SEPARATOR)
+            . DIRECTORY_SEPARATOR
+            . $filename;
 
         if (file_exists($path)) {
-            throw new RuntimeException("Migration already exists: {$path}");
+            throw new RuntimeException(
+                "Migration already exists: {$path}"
+            );
         }
 
         $contents = match (true) {
             $populate => $this->populateStub(),
 
-            $blank => $this->migrationStub(
-                ...$this->rawSqlTemplate()
+            $sql => $this->migrationStub(
+                ...$this->rawSqlTemplate(wrapped: false)
             ),
 
             default => $this->migrationStub(
@@ -95,6 +105,7 @@ class MigrationCreator
 
         return $this->rawSqlTemplate();
     }
+
 
     protected function templates(): array
     {
@@ -300,31 +311,46 @@ SQL,
         return strtolower($this->driver);
     }
 
-    protected function rawSqlTemplate($newBlank = false): array
+    /**
+     * Build blank UP and DOWN SQL expressions.
+     *
+     * @param bool $wrapped Whether SQL should be wrapped in $this->raw().
+     *
+     * @return array{0: string, 1: string}
+     */
+    protected function rawSqlTemplate($wrapped = true): array
     {
         return [
-            $this->sqlBlock('-- Write your UP SQL here', $newBlank),
-            $this->sqlBlock('-- Write your DOWN SQL here', $newBlank),
+            $this->sqlBlock('-- Write your UP SQL here', $wrapped),
+            $this->sqlBlock('-- Write your DOWN SQL here', $wrapped),
         ];
     }
 
-    protected function sqlBlock(string $sql, $newMode = false): string
+    /**
+     * Build a SQL return expression for a migration method.
+     *
+     * @param string $sql     SQL body.
+     * @param bool   $wrapped Whether SQL should be wrapped in $this->raw().
+     *
+     * @return string
+     */
+    protected function sqlBlock(string $sql, $wrapped = true): string
     {
         $sql = trim($sql);
 
-        if ($newMode) {
+        if ($wrapped) {
             return <<<PHP
             \$this->raw(<<<SQL
                     {$sql}
                     SQL)
             PHP;
-        } else {
-            return <<<PHP
+        }
+
+        return <<<PHP
             <<<SQL
                     {$sql}
                     SQL
             PHP;
-        }
     }
 
     /**

@@ -27,7 +27,7 @@ final class Application
 
     protected bool $force = false;
 
-    protected bool $blank = false;
+    protected bool $sql = false;
     protected bool $populate = false;
     protected bool $repairModified = false;
 
@@ -42,7 +42,7 @@ final class Application
         $this->dryRun = $this->options->hasAny(['--dry-run', '--pretend']);
         $this->force = $this->options->has('--force');
         $this->populate = $this->options->has('--populate');
-        $this->blank = $this->options->hasAny(['--blank']);
+        $this->sql = $this->options->hasAny(['--sql', '--blank']);
         $this->repairModified = $this->options->has('--modified');
 
         try {
@@ -439,7 +439,7 @@ final class Application
             return;
         }
 
-        if ($this->blank && $this->populate) {
+        if ($this->sql && $this->populate) {
             throw new RuntimeException(
                 'The --blank and --populate options cannot be used together.'
             );
@@ -451,7 +451,7 @@ final class Application
 
         $file = $creator->create(
             name: $name,
-            blank: $this->blank,
+            sql: $this->sql,
             populate: $this->populate
         );
 
@@ -574,7 +574,7 @@ Migraw
 
 Usage:
   migraw init[:mysql|:pgsql|:sqlite] [--force]
-  migraw make|new <name> [--populate]
+  migraw make|new <name> [--sql|--populate]
   migraw migrate|up [--dry-run|--pretend]
   migraw rollback|down [--dry-run|--pretend]
   migraw reset [--dry-run|--pretend]
@@ -598,7 +598,8 @@ Commands:
   doctor            Check configuration and environment
 
 Options:
-  --populate        Generate a PopulatorMigration
+  --sql             Generate a blank migration using plain SQL strings
+  --populate        Generate a population migration
   --dry-run         Show SQL without executing it
   --pretend         Alias of --dry-run
   --modified        Also repair modified migration checksums
