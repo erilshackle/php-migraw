@@ -478,7 +478,13 @@ final class Application
 
         $driver = (string) $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
 
-        $creator = new MigrationCreator($path, $driver);
+        $template = $config['template'] ?? 'raw';
+
+        $creator = new MigrationCreator(
+            path: $path,
+            driver: $driver,
+            template: $template
+        );
 
         $file = $creator->create(
             name: $name,

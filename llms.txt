@@ -2,101 +2,715 @@
 
 > SQL-first migrations for PHP. Write SQL. Not magic.
 
-Migraw is a lightweight database migration tool for PHP applications. It focuses on explicit SQL, predictable migrations, and minimal framework assumptions.
+Migraw is a lightweight, framework-independent migration tool for PHP.
 
-## Core Features
+Migraw supports both a fluent `SqlStatement` API and raw SQL migrations.
 
-* SQL-first database migrations
-* PHP-based migration files
-* Migration batches and rollback support
-* Migration checksums
-* Migration status and validation
-* Population migrations for initial or reference data
-* Schema squash for consolidating migration history
-* MySQL and MariaDB support
-* Framework-independent architecture
-* Composer CLI integration
+When generating a new Migraw migration, use the fluent `SqlStatement` API by default.
 
-## CLI
+Unless the user explicitly requests raw SQL, generated migrations should use Migraw's fluent API.
 
-The main executable is:
+Raw SQL through `$this->raw()` remains fully supported and should be used when the user explicitly requests raw migrations, when working with existing raw Migraw code, or when an operation cannot be clearly represented by the available fluent API.
 
-`vendor/bin/migraw`
+## Installation
 
-Common commands:
+```bash
+composer require eril/migraw
+```
 
-* `migraw migrate` — Run pending migrations
-* `migraw rollback` — Roll back the latest migration batch
-* `migraw status` — Show migration status
-* `migraw make <name>` — Create a migration
-* `migraw new <name>` — Alias for creating a migration
-* `migraw validate` — Validate migration files and checksums
-* `migraw doctor` — Check the migration environment
-* `migraw squash [name]` — Consolidate the current schema into a new baseline
+The CLI is available through:
 
-## Migrations
+```bash
+php vendor/bin/migraw
+```
 
-Migration files are PHP classes extending the Migraw `Migration` class.
+## Creating Migrations
 
-Migrations define:
+Create a migration with:
 
-* `up()` — SQL executed when applying the migration
-* `down()` — SQL executed when rolling the migration back
+```bash
+php vendor/bin/migraw make create_users_table
+```
 
-Migraw favors explicit SQL rather than hiding database operations behind a large schema abstraction.
+Migraw generates timestamped PHP migration files.
 
-## Population Migrations
+A migration returns an anonymous class extending `Migration` and normally implements both `up()` and `down()`.
 
-`PopulatorMigration` is intended for initial, reference, or required application data.
+Example using the default fluent style:
 
-Population migrations are kept separate from structural schema migrations.
+```php
+<?php
+
+use Eril\Migraw\Migration;
+use Eril\Migraw\Sql\SqlStatement;
+
+return new class extends Migration
+{
+    public function up(): SqlStatement
+    {
+        return $this->create('users')
+            ->id()
+            ->column('name VARCHAR(255) NOT NULL')
+            ->column('email VARCHAR(180) NOT NULL UNIQUE')
+            ->column('password_hash VARCHAR(255) NOT NULL')
+            ->timestamps();
+    }
+
+    public function down(): SqlStatement
+    {
+        return $this->drop('users')
+            ->ifExists();
+    }
+};
+```
+
+## Fluent Migration Style
+
+The fluent `SqlStatement` API is the default migration style when generating Migraw migrations.
+
+Unless the user explicitly requests raw SQL, generate migrations using the fluent API.
+
+The fluent API intentionally stays close to SQL.
+
+Column definitions remain explicit SQL fragments:
+
+```php
+->column('name VARCHAR(255) NOT NULL')
+->column('price DECIMAL(10,2) NOT NULL DEFAULT 0.00')
+->column('active TINYINT(1) NOT NULL DEFAULT 1')
+```
+
+Do not invent Laravel-style column APIs such as:
+
+```php
+$table->string('name');
+$table->boolean('active');
+```
+
+Migraw does not use Laravel's schema builder.
+
+### Creating Tables
+
+Use:
+
+```php
+$this->create('table_name')
+```
+
+Example:
+
+```php
+public function up(): SqlStatement
+{
+    return $this->create('roles')
+        ->id()
+        ->column('name VARCHAR(100) NOT NULL')
+        ->column('slug VARCHAR(100) NOT NULL UNIQUE')
+        ->timestamps();
+}
+```
+
+Rollback:
+
+```php
+public function down(): SqlStatement
+{
+    return $this->drop('roles')
+        ->ifExists();
+}
+```
+
+### Foreign Keys
+
+Foreign keys can be added through the fluent statement API.
+
+```php
+public function up(): SqlStatement
+{
+    return $this->create('posts')
+        ->id()
+        ->column('user_id INT NOT NULL')
+        ->column('title VARCHAR(255) NOT NULL')
+        ->foreign('user_id', 'users')
+        ->timestamps();
+}
+```
+
+Keep dependency order in mind.
+
+Referenced tables must exist before tables containing their foreign keys are created.
+
+During rollback, dependent tables should normally be removed before referenced tables.
+
+### Multiple Fluent Statements
+
+A migration may return multiple `SqlStatement` instances:
+
+```php
+<?php
+
+use Eril\Migraw\Migration;
+use Eril\Migraw\Sql\SqlStatement;
+
+return new class extends Migration
+{
+    /**
+     * @return array<int, SqlStatement>
+     */
+    public function up(): array
+    {
+        return [
+            $this->create('roles')
+                ->id()
+                ->column('name VARCHAR(100) NOT NULL UNIQUE'),
+
+            $this->create('users')
+                ->id()
+                ->column('role_id INT NOT NULL')
+                ->column('name VARCHAR(255) NOT NULL')
+                ->foreign('role_id', 'roles')
+                ->timestamps(),
+        ];
+    }
+
+    /**
+     * @return array<int, SqlStatement>
+     */
+    public function down(): array
+    {
+        return [
+            $this->drop('users')->ifExists(),
+            $this->drop('roles')->ifExists(),
+        ];
+    }
+};
+```
+
+Statements execute in the order returned.
+
+Rollback statements should usually be returned in reverse dependency order.
+
+### Altering Tables
+
+Use Migraw's fluent SQL statements where the available helper clearly represents the operation.
+
+Example:
+
+```php
+public function up(): SqlStatement
+{
+    return $this->alter('users')
+        ->add('phone VARCHAR(50) DEFAULT NULL');
+}
+```
+
+The rollback should reverse the operation:
+
+```php
+public function down(): SqlStatement
+{
+    return $this->alter('users')
+        ->dropColumn('phone');
+}
+```
+
+When using alter operations, follow the actual methods provided by the installed Migraw version.
+
+Do not invent methods that are not part of its `SqlStatement` API.
+
+## Raw SQL
+
+Migraw also supports explicit raw SQL through `$this->raw()`.
+
+Raw SQL is not the default generation style, but it is a first-class Migraw feature.
+
+Use raw SQL when:
+
+- the user explicitly requests raw SQL;
+- existing Migraw code already uses raw migrations;
+- the fluent API does not provide the required operation;
+- the operation is database-specific;
+- procedures, triggers, advanced constraints, or specialized DDL are required;
+- raw SQL expresses the operation more accurately or clearly than the available fluent API.
+
+Example:
+
+```php
+<?php
+
+use Eril\Migraw\Migration;
+use Eril\Migraw\Sql\SqlStatement;
+
+return new class extends Migration
+{
+    public function up(): string|array|SqlStatement
+    {
+        return $this->raw(<<<'SQL'
+CREATE TABLE users (
+    id INT NOT NULL AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(180) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_users_email (email)
+);
+SQL);
+    }
+
+    public function down(): string|array|SqlStatement
+    {
+        return $this->raw(<<<'SQL'
+DROP TABLE IF EXISTS users;
+SQL);
+    }
+};
+```
+
+Raw SQL should remain explicit, readable, and reversible.
+
+### Altering Tables with Raw SQL
+
+Example:
+
+```php
+<?php
+
+use Eril\Migraw\Migration;
+use Eril\Migraw\Sql\SqlStatement;
+
+return new class extends Migration
+{
+    public function up(): string|array|SqlStatement
+    {
+        return $this->raw(<<<'SQL'
+ALTER TABLE users
+    ADD COLUMN phone VARCHAR(50) NULL;
+SQL);
+    }
+
+    public function down(): string|array|SqlStatement
+    {
+        return $this->raw(<<<'SQL'
+ALTER TABLE users
+    DROP COLUMN phone;
+SQL);
+    }
+};
+```
+
+### Multiple Raw Statements
+
+A migration may return multiple statements:
+
+```php
+public function up(): array
+{
+    return [
+        $this->raw(<<<'SQL'
+ALTER TABLE users
+    ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1;
+SQL),
+
+        $this->raw(<<<'SQL'
+CREATE INDEX idx_users_active
+ON users (active);
+SQL),
+    ];
+}
+```
+
+Statements execute in the order returned.
+
+The `down()` migration should normally reverse those operations in reverse dependency order.
+
+## Mixing Fluent Statements and Raw SQL
+
+A migration can return multiple statements containing both fluent `SqlStatement` objects and raw SQL.
+
+```php
+public function up(): array
+{
+    return [
+        $this->create('users')
+            ->id()
+            ->column('name VARCHAR(255) NOT NULL'),
+
+        $this->raw(<<<'SQL'
+CREATE INDEX idx_users_name
+ON users (name);
+SQL),
+    ];
+}
+```
+
+Prefer the fluent API when the required operation is supported clearly.
+
+Do not invent fluent methods merely to avoid raw SQL.
+
+If the fluent API cannot accurately express an operation, use `$this->raw()`.
+
+## PopulatorMigration
+
+Use `PopulatorMigration` for deterministic application data required by the system.
 
 Examples include:
 
-* countries
-* regions
-* categories
-* application defaults
-* other required reference data
+- roles
+- permissions
+- countries or regions
+- fixed categories
+- application configuration
+- lookup values
 
-When migrations are squashed, population migrations are preserved instead of being merged into the schema baseline.
+Do not use population migrations for random development fixtures or large demonstration datasets.
 
-## Schema Squash
+Example:
 
-Migraw can consolidate a long migration history:
+```php
+<?php
 
-`vendor/bin/migraw squash`
+use Eril\Migraw\PopulatorMigration;
+use Eril\Migraw\Sql\SqlStatement;
 
-A custom baseline name may be provided:
+return new class extends PopulatorMigration
+{
+    public function populate(): SqlStatement
+    {
+        return $this->populateRows(
+            'roles',
+            [
+                [
+                    'slug' => 'admin',
+                    'name' => 'Administrator',
+                ],
+                [
+                    'slug' => 'user',
+                    'name' => 'User',
+                ],
+            ],
+            uniqueBy: 'slug'
+        );
+    }
+};
+```
 
-`vendor/bin/migraw squash mhcv_schema`
+Population should be idempotent.
 
-The squash process:
+The unique key passed to the population statement should correspond to a `PRIMARY KEY` or `UNIQUE` constraint in the database.
 
-1. Verifies that schema migrations are up to date.
-2. Reads the current database schema.
-3. Generates a new baseline migration.
-4. Archives superseded schema migrations.
-5. Preserves population migrations.
-6. Reorders preserved population migrations after the new baseline.
-7. Updates migration history to represent the squashed state.
+Existing rows are preserved unless update behavior is explicitly requested.
 
-For MySQL and MariaDB, schema dumping uses the database's actual table definitions, including columns, indexes, constraints, foreign keys, engines, character sets, and collations.
+Example:
 
-## Philosophy
+```php
+return $this->populateRows(
+    'roles',
+    [
+        [
+            'slug' => 'admin',
+            'name' => 'System Administrator',
+        ],
+    ],
+    uniqueBy: 'slug'
+)->update([
+    'name',
+]);
+```
 
-Migraw intentionally keeps migrations explicit and understandable.
+## Migration Rules
+
+Executed migrations should normally be treated as immutable.
+
+When the schema changes, create another migration instead of editing one that has already run.
 
 Prefer:
 
-`CREATE TABLE`, `ALTER TABLE`, `CREATE INDEX`, and other SQL statements that clearly describe what happens to the database.
+```text
+20260801_create_users.php
+20260805_add_phone_to_users.php
+20260810_add_status_to_users.php
+```
 
-Avoid unnecessary abstractions and migration magic.
+instead of repeatedly modifying:
 
-Migraw is designed for developers who want migration tracking, rollback, validation, population, and schema management while retaining direct control over SQL.
+```text
+20260801_create_users.php
+```
 
-## Intended Usage
+Migraw records migration checksums and can detect modified executed migrations.
 
-Migraw can be used with custom PHP applications, lightweight frameworks, or existing projects that need database migrations without adopting a full application framework.
+## Running Migrations
 
-It does not require Laravel, Symfony, or another application framework.
+Run pending migrations:
+
+```bash
+php vendor/bin/migraw migrate
+```
+
+Alias:
+
+```bash
+php vendor/bin/migraw up
+```
+
+Rollback the latest batch:
+
+```bash
+php vendor/bin/migraw rollback
+```
+
+Alias:
+
+```bash
+php vendor/bin/migraw down
+```
+
+Show status:
+
+```bash
+php vendor/bin/migraw status
+```
+
+Validate migrations:
+
+```bash
+php vendor/bin/migraw validate
+```
+
+Check the environment:
+
+```bash
+php vendor/bin/migraw doctor
+```
+
+Preview SQL without executing it:
+
+```bash
+php vendor/bin/migraw migrate --dry-run
+```
+
+## Schema Squashing
+
+Long migration histories can be consolidated into a new schema baseline:
+
+```bash
+php vendor/bin/migraw squash
+```
+
+A baseline name may be supplied:
+
+```bash
+php vendor/bin/migraw squash app_schema
+```
+
+For non-interactive execution:
+
+```bash
+php vendor/bin/migraw squash app_schema --force
+```
+
+Before squashing, all schema migrations must be applied:
+
+```bash
+php vendor/bin/migraw migrate
+php vendor/bin/migraw squash
+```
+
+Squashing:
+
+1. Reads the current database schema.
+2. Creates a new baseline migration.
+3. Archives superseded schema migrations.
+4. Preserves `PopulatorMigration` files.
+5. Places population migrations after the new baseline.
+6. Updates the migration repository.
+
+Population migrations are not merged into the schema baseline.
+
+Schema squashing currently supports MySQL and MariaDB.
+
+## Commands
+
+```text
+init
+init:mysql
+init:pgsql
+init:sqlite
+
+make <name>
+new <name>
+
+migrate
+up
+
+rollback
+down
+
+reset
+refresh
+fresh
+
+status
+validate
+doctor
+
+repair
+repair --modified
+
+squash [name]
+```
+
+## Database Support
+
+General Migraw migration functionality supports:
+
+- MySQL
+- MariaDB
+- PostgreSQL
+- SQLite
+
+The corresponding PDO driver must be installed.
+
+Schema squashing currently supports:
+
+- MySQL
+- MariaDB
+
+## Guidance for AI Code Generation
+
+When generating code for Migraw:
+
+1. Generate fluent `SqlStatement` migrations by default.
+2. Unless the user explicitly requests raw SQL, use the fluent Migraw API.
+3. Use `Migration` for schema migrations.
+4. Keep column definitions explicit as SQL fragments inside fluent methods such as `column()` and `add()`.
+5. Make both `up()` and `down()` explicit and reversible whenever possible.
+6. Use arrays when a migration requires multiple statements.
+7. Respect dependency order when creating tables and foreign keys.
+8. Reverse dependency order in `down()`.
+9. Use `PopulatorMigration` for deterministic required application data.
+10. Use `$this->raw()` when the user explicitly requests raw SQL or the fluent API cannot accurately represent the required operation.
+11. Do not generate Laravel migrations or Laravel Schema Builder syntax.
+12. Do not assume fluent methods exist unless they are part of Migraw's actual `SqlStatement` API.
+13. Do not modify historical executed migrations when a new migration can represent the change.
+14. Preserve the style of existing Migraw code when modifying an existing migration.
+
+### Default Generation Style
+
+If a user asks:
+
+> Create a Migraw migration to add `phone` to `users`.
+
+Generate fluent syntax by default:
+
+```php
+<?php
+
+use Eril\Migraw\Migration;
+use Eril\Migraw\Sql\SqlStatement;
+
+return new class extends Migration
+{
+    public function up(): SqlStatement
+    {
+        return $this->alter('users')
+            ->add('phone VARCHAR(50) NULL');
+    }
+
+    public function down(): SqlStatement
+    {
+        return $this->alter('users')
+            ->dropColumn('phone');
+    }
+};
+```
+
+Do not ask whether raw or fluent should be used when the user did not specify a style.
+
+Use fluent.
+
+### When Raw Is Requested
+
+If the user explicitly asks for a raw Migraw migration, use `$this->raw()`:
+
+```php
+<?php
+
+use Eril\Migraw\Migration;
+use Eril\Migraw\Sql\SqlStatement;
+
+return new class extends Migration
+{
+    public function up(): string|array|SqlStatement
+    {
+        return $this->raw(<<<'SQL'
+ALTER TABLE users
+    ADD COLUMN phone VARCHAR(50) NULL;
+SQL);
+    }
+
+    public function down(): string|array|SqlStatement
+    {
+        return $this->raw(<<<'SQL'
+ALTER TABLE users
+    DROP COLUMN phone;
+SQL);
+    }
+};
+```
+
+### Unsupported Fluent Operations
+
+Do not invent fluent methods.
+
+If the requested operation cannot be represented using known Migraw `SqlStatement` methods, use raw SQL for that operation.
+
+For example, do not assume methods such as:
+
+```php
+->trigger(...)
+->procedure(...)
+->enum(...)
+->json(...)
+->cascade(...)
+```
+
+exist unless they are part of the actual Migraw API.
+
+Using:
+
+```php
+$this->raw(...)
+```
+
+is preferable to generating a nonexistent fluent API.
+
+### Existing Code
+
+When modifying an existing migration, preserve its existing style unless the user asks to convert it.
+
+If the existing migration uses fluent `SqlStatement`, continue using fluent syntax.
+
+If the existing migration uses `$this->raw()`, continue using raw SQL.
+
+### Style Selection Priority
+
+Use this priority when deciding how to generate a migration:
+
+1. User explicitly requests fluent → use fluent.
+2. User explicitly requests raw → use raw.
+3. Existing migration already establishes a style → preserve that style.
+4. The required operation is not supported by the known fluent API → use raw for that operation.
+5. No style is specified → use fluent.
+
+The default generated Migraw migration style is fluent `SqlStatement`.
+
+Migraw supports both fluent `SqlStatement` and raw SQL migrations as first-class approaches.
+
+Fluent is the default generation style, not a restriction against raw SQL.
+
+The goal in both styles is the same: readable, explicit, predictable migrations with SQL semantics remaining visible.
+
