@@ -472,11 +472,13 @@ final class Application
 
         if ($this->sql && $this->populate) {
             throw new RuntimeException(
-                'The --blank and --populate options cannot be used together.'
+                'The --sql and --populate options cannot be used together.'
             );
         }
 
         $driver = (string) $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+
+        $config = $this->configManager->load();
 
         $template = $config['template'] ?? 'raw';
 

@@ -52,14 +52,14 @@ class FluentMigrationTemplate
                     return [
                         <<<PHP
 \$this->create('{$table}')
-    ->id()
-    ->column('name VARCHAR(255) NULL')
-    ->timestamps()
+            ->id()
+            ->column('name VARCHAR(255) NULL')
+            ->timestamps()
 PHP,
 
                         <<<PHP
 \$this->drop('{$table}')
-    ->ifExists()
+            ->ifExists()
 PHP,
                     ];
                 },
@@ -71,14 +71,14 @@ PHP,
                     return [
                         <<<PHP
 \$this->drop('{$table}')
-    ->ifExists()
+            ->ifExists()
 PHP,
 
                         <<<PHP
 \$this->create('{$table}')
-    ->id()
-    ->column('name VARCHAR(255) NULL')
-    ->timestamps()
+            ->id()
+            ->column('name VARCHAR(255) NULL')
+            ->timestamps()
 PHP,
                     ];
                 },
@@ -91,12 +91,12 @@ PHP,
                     return [
                         <<<PHP
 \$this->alter('{$table}')
-    ->add('{$column} VARCHAR(255) NULL')
+            ->add('{$column} VARCHAR(255) NULL')
 PHP,
 
                         <<<PHP
 \$this->alter('{$table}')
-    ->dropColumn('{$column}')
+            ->dropColumn('{$column}')
 PHP,
                     ];
                 },
@@ -109,12 +109,12 @@ PHP,
                     return [
                         <<<PHP
 \$this->alter('{$table}')
-    ->dropColumn('{$column}')
+            ->dropColumn('{$column}')
 PHP,
 
                         <<<PHP
 \$this->alter('{$table}')
-    ->add('{$column} VARCHAR(255) NULL')
+            ->add('{$column} VARCHAR(255) NULL')
 PHP,
                     ];
                 },
@@ -134,12 +134,12 @@ PHP,
         return [
             <<<'PHP'
 $this->alter('table_name')
-    // ->add('column VARCHAR(255) NULL')
+            // ->add('column VARCHAR(255) NULL')
 PHP,
 
             <<<'PHP'
 $this->alter('table_name')
-    // ->dropColumn('column')
+            // ->dropColumn('column')
 PHP,
         ];
     }

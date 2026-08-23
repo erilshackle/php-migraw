@@ -2,82 +2,126 @@
 
 *Changelog created using the [Simple Changelog](https://marketplace.visualstudio.com/items?itemName=tobiaswaelde.vscode-simple-changelog) extension for VS Code.*
 
-## [1.2.0] - 2026-07-22
+## [1.3.0] - 2026-08-23
+
 ### Added
-- Added idempotent data population through `Populate`
-- Added population migration templates with the `--populate` option.
-- Added conflict handling for MySQL, MariaDB, PostgreSQL and SQLite.
-- Added support for updating selected columns when populated rows already exist.
-- Added modified migration detection in the `status` command.
-- Added repair `--modified` to accept the current checksum of intentionally
-- Added PHP 8.5 to the CI test matrix.
+
+* Added the `squash` command for consolidating executed schema migrations into a new baseline.
+* Added `MigrationSquasher` for generating and managing squashed migration baselines.
+* Added `SchemaDumper` for reading the current MySQL/MariaDB schema.
+* Added automatic archiving of superseded schema migrations during squash.
+* Added preservation of `PopulatorMigration` files during schema squashing.
+* Added automatic retimestamping of preserved population migrations so they remain ordered after the generated baseline.
+* Added support for preserving executed and pending population migration state during squash.
+* Added configurable migration templates through the `template` configuration option.
+* Added `raw` and `fluent` migration template modes.
+* Added dedicated raw and fluent migration template generators.
 
 ### Changed
-- Add rollback support with foreign key checks management
-- Changed unknown migration templates to generate wrapped raw SQL statements.
-- Changed refresh to roll back all managed migrations and run them again.
-- Improved migration creator templates and validation.
-- Improved the test workflow by separating tests and code-quality checks.
+
+* Changed the default migration template to `raw`.
+* Refactored migration creation so file creation and template generation are handled separately.
+* Standardized generated database connection configuration across MySQL, PostgreSQL and SQLite.
+* Connection configuration now keeps the same fields for every driver, including `sqlite_path`.
+* Updated generated configuration to read database settings from `$_ENV`.
+* Improved generated configuration documentation for PDO instances, closures and callable connections.
+* Improved schema squash migration ordering and migration repository updates.
+* Updated migration generation behavior to respect the configured default template.
+
+### Fixed
+
+* Fixed schema squashing so population migrations are not incorrectly merged into the generated schema baseline.
+* Fixed preserved population migrations being ordered before a newly generated baseline.
+* Fixed migration history replacement during squash so preserved population migration state remains consistent.
+
+## [1.2.0] - 2026-07-22
+
+### Added
+
+* Added idempotent data population through `Populate`.
+* Added population migration templates with the `--populate` option.
+* Added conflict handling for MySQL, MariaDB, PostgreSQL and SQLite.
+* Added support for updating selected columns when populated rows already exist.
+* Added modified migration detection in the `status` command.
+* Added `repair --modified` to accept the current checksum of intentionally modified migrations.
+* Added PHP 8.5 to the CI test matrix.
+
+### Changed
+
+* Added rollback support with foreign key checks management.
+* Changed unknown migration templates to generate wrapped raw SQL statements.
+* Changed `refresh` to roll back all managed migrations and run them again.
+* Improved migration creator templates and validation.
+* Improved the test workflow by separating tests and code-quality checks.
 
 ### Deprecated
-- deprecate command option `--blank` but still functional
+
+* Deprecated the `--blank` command option while keeping it functional.
 
 ### Fixed
-- Fixed raw migration fallback generation so unknown migration names use `$this->raw(...)`.
-- Fixed incorrect `fresh` behavior that previously acted like `refresh`.
-- Fixed static-analysis type declarations in `Populate`.
-- Fixed driver-specific SQL expectations for quoted identifiers
+
+* Fixed raw migration fallback generation so unknown migration names use `$this->raw(...)`.
+* Fixed incorrect `fresh` behavior that previously acted like `refresh`.
+* Fixed static-analysis type declarations in `Populate`.
+* Fixed driver-specific SQL expectations for quoted identifiers.
 
 ### Removed
-- Removed command `new` (alias of `make`)
-- Removed command option `-b` alias of `--blank`
+
+* Removed the `new` command alias for `make`.
+* Removed the `-b` alias for `--blank`.
 
 ### Security
-- Added migration checksum tracking.
 
+* Added migration checksum tracking.
 
 ## [1.1.0] - 2026-07-01
+
 ### Added
-- Smart migration template generation
-- Driver-aware SQL templates
-- `doctor` command
-- `repair` command
-- `--blank` option for empty migrations
-- `new` alias for `make`
-- Driver-aware SQL helpers
-- Improved migration validation
+
+* Added smart migration template generation.
+* Added driver-aware SQL templates.
+* Added the `doctor` command.
+* Added the `repair` command.
+* Added the `--blank` option for empty migrations.
+* Added the `new` alias for `make`.
+* Added driver-aware SQL helpers.
+* Added improved migration validation.
 
 ### Changed
-- Smart templates are now generated by default
-- Simplified CLI architecture
-- Refactored internal application structure
-- Improved help output
-- Improved migration generation experience
+
+* Smart templates are now generated by default.
+* Simplified CLI architecture.
+* Refactored internal application structure.
+* Improved help output.
+* Improved migration generation experience.
 
 ### Fixed
-- Better SQL formatting in generated migrations
-- Improved migration status detection
-- Better driver compatibility
 
+* Improved SQL formatting in generated migrations.
+* Improved migration status detection.
+* Improved driver compatibility.
 
 ## [1.0.0] - 2026-06-27
-### Added
-- First stable release
-- SQL-first migration engine
-- Raw SQL migrations
-- Lightweight SQL helpers
-- Migration batches
-- Rollback support
-- Dry-run mode
-- Interactive CLI
-- PDO, callable and array-based connections
-- Framework agnostic architecture
 
+### Added
+
+* First stable release.
+* SQL-first migration engine.
+* Raw SQL migrations.
+* Lightweight SQL helpers.
+* Migration batches.
+* Rollback support.
+* Dry-run mode.
+* Interactive CLI.
+* PDO, callable and array-based connections.
+* Framework-agnostic architecture.
 
 ## [0.1.0] - 2026-06-15
+
 ### Added
-- Initial public preview
-- Basic migration engine
-- Raw SQL migrations
-- Migration repository
-- Initial CLI
+
+* Initial public preview.
+* Basic migration engine.
+* Raw SQL migrations.
+* Migration repository.
+* Initial CLI.
