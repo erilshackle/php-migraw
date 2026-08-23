@@ -6,6 +6,8 @@ use Eril\Migraw\Migration;
 use Eril\Migraw\MigrationCreator;
 use Eril\Migraw\MigrationRepository;
 use Eril\Migraw\Migrator;
+use Eril\Migraw\Squash\MigrationSquasher;
+use Eril\Migraw\Squash\SchemaDumper;
 use Eril\Migraw\Sql\SqlStatement;
 use PDO;
 use RuntimeException;
@@ -105,7 +107,8 @@ final class Application
             'reset' => $this->resetMigrations($migrator),
             'fresh' => $this->fresh($migrator),
             'refresh' => $this->refresh($migrator),
-            'make'  => $this->make($path, $this->options->migrationName(), $pdo),
+            'make' => $this->make($path, $this->options->migrationName(), $pdo),
+            'squash' => $this->squash($pdo, $path, $repository, $table),
             'repair' => $this->repair($migrator),
             'help', '--help', '-h' => $this->help(),
             default => $this->unknownCommand((string) $this->command),
@@ -355,11 +358,14 @@ final class Application
         }
 
         try {
+            $name = ($config['connection']['driver'] ?? '') == 'sqlite'
+                ? $config['connection']['sqlite_path']
+                : $config['connection']['database'];
             $pdo->query('SELECT 1');
-            $this->doctorOk('Database connection');
+            $this->doctorOk("Database connection ($name)");
         } catch (Throwable $e) {
             $issues++;
-            $this->doctorFail('Database connection', $e->getMessage());
+            $this->doctorFail("Database connection ()", $e->getMessage());
         }
 
         try {
@@ -485,6 +491,58 @@ final class Application
         );
     }
 
+    protected function squash(
+        PDO $pdo,
+        string $path,
+        MigrationRepository $repository,
+        string $table
+    ): void {
+        if ($this->dryRun) {
+            throw new RuntimeException(
+                'Squash does not support --dry-run. It changes migration files and repository history.'
+            );
+        }
+
+        $name = $this->options->migrationName() ?? 'schema';
+
+        if (! $this->force) {
+            echo Console::bold("Migraw Squash\n\n");
+            echo "This will create a schema baseline, archive current migration files,\n";
+            echo "and replace the recorded migration history with the new baseline.\n\n";
+            echo Console::bold("Continue? [y/N]: ");
+
+            $answer = trim((string) fgets(STDIN));
+
+            if (! in_array(strtolower($answer), ['y', 'yes'], true)) {
+                echo "Cancelled.\n";
+                return;
+            }
+
+            echo "\n";
+        }
+
+        $squasher = new MigrationSquasher(
+            $path,
+            new SchemaDumper($pdo, $table),
+            $repository
+        );
+
+        $result = $squasher->squash($name);
+
+        echo Console::green(
+            "Created baseline: {$this->paths->relative($result['file'])}\n"
+        );
+        echo Console::green(
+            'Squashed tables: ' . count($result['tables']) . "\n"
+        );
+        echo Console::yellow(
+            'Archived migrations: ' . count($result['archived']) . "\n"
+        );
+        echo Console::gray(
+            "Archive: {$this->paths->relative($result['archive'])}\n"
+        );
+    }
+
     protected function printPretendedSql(Migrator $migrator): void
     {
         $sql = $migrator->getPretendedSql();
@@ -599,12 +657,13 @@ Migraw
 
 Usage:
   migraw init[:mysql|:pgsql|:sqlite] [--force]
-  migraw make|new <name> [--sql|--populate]
+  migraw make <name> [--sql|--populate]
   migraw migrate|up [--dry-run|--pretend]
   migraw rollback|down [--dry-run|--pretend]
   migraw reset [--dry-run|--pretend]
   migraw fresh [--dry-run|--pretend]
   migraw repair [--modified] [--force]
+  migraw squash [name] [--force]
   migraw status
   migraw validate
   migraw doctor
@@ -618,6 +677,7 @@ Commands:
   reset             Rollback all executed migrations
   fresh             Reset and run all migrations again
   repair            Remove missing migration records
+  squash            Replace migration history with a schema baseline
   status            Show migration status
   validate          Validate migration files
   doctor            Check configuration and environment

@@ -319,6 +319,74 @@ class MigrationRepository
         ]);
     }
 
+
+    /**
+     * Replace schema migration history with a squash baseline while preserving
+     * already executed population migrations under their new names.
+     *
+     * Preserved migrations are written to batch 2. This makes rollback
+     * semantics predictable after a squash: population records are removed
+     * first (their down() is empty), followed by the schema baseline.
+     *
+     * @param string $migration Baseline migration name.
+     * @param string $checksum Baseline file checksum.
+     * @param array<string,array{migration:string,checksum:string}> $preserved
+     *        Executed migrations keyed by their old names.
+     *
+     * @return void
+     */
+    public function replaceWithBaseline(
+        string $migration,
+        string $checksum,
+        array $preserved = []
+    ): void {
+        $this->ensureTableExists();
+
+        $ran = array_flip($this->getRan());
+        $startedTransaction = ! $this->pdo->inTransaction();
+
+        try {
+            if ($startedTransaction) {
+                $this->pdo->beginTransaction();
+            }
+
+            $this->pdo->exec("DELETE FROM {$this->table}");
+
+            $stmt = $this->pdo->prepare("
+                INSERT INTO {$this->table} (migration, batch, checksum)
+                VALUES (:migration, :batch, :checksum)
+            ");
+
+            $stmt->execute([
+                'migration' => $migration,
+                'batch' => 1,
+                'checksum' => $checksum,
+            ]);
+
+            foreach ($preserved as $oldName => $item) {
+                if (! isset($ran[$oldName])) {
+                    continue;
+                }
+
+                $stmt->execute([
+                    'migration' => $item['migration'],
+                    'batch' => 2,
+                    'checksum' => $item['checksum'],
+                ]);
+            }
+
+            if ($startedTransaction && $this->pdo->inTransaction()) {
+                $this->pdo->commit();
+            }
+        } catch (\Throwable $e) {
+            if ($startedTransaction && $this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+
+            throw $e;
+        }
+    }
+
     /**
      * Get the stored checksum for a migration.
      *
