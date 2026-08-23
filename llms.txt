@@ -1,0 +1,102 @@
+# Migraw
+
+> SQL-first migrations for PHP. Write SQL. Not magic.
+
+Migraw is a lightweight database migration tool for PHP applications. It focuses on explicit SQL, predictable migrations, and minimal framework assumptions.
+
+## Core Features
+
+* SQL-first database migrations
+* PHP-based migration files
+* Migration batches and rollback support
+* Migration checksums
+* Migration status and validation
+* Population migrations for initial or reference data
+* Schema squash for consolidating migration history
+* MySQL and MariaDB support
+* Framework-independent architecture
+* Composer CLI integration
+
+## CLI
+
+The main executable is:
+
+`vendor/bin/migraw`
+
+Common commands:
+
+* `migraw migrate` — Run pending migrations
+* `migraw rollback` — Roll back the latest migration batch
+* `migraw status` — Show migration status
+* `migraw make <name>` — Create a migration
+* `migraw new <name>` — Alias for creating a migration
+* `migraw validate` — Validate migration files and checksums
+* `migraw doctor` — Check the migration environment
+* `migraw squash [name]` — Consolidate the current schema into a new baseline
+
+## Migrations
+
+Migration files are PHP classes extending the Migraw `Migration` class.
+
+Migrations define:
+
+* `up()` — SQL executed when applying the migration
+* `down()` — SQL executed when rolling the migration back
+
+Migraw favors explicit SQL rather than hiding database operations behind a large schema abstraction.
+
+## Population Migrations
+
+`PopulatorMigration` is intended for initial, reference, or required application data.
+
+Population migrations are kept separate from structural schema migrations.
+
+Examples include:
+
+* countries
+* regions
+* categories
+* application defaults
+* other required reference data
+
+When migrations are squashed, population migrations are preserved instead of being merged into the schema baseline.
+
+## Schema Squash
+
+Migraw can consolidate a long migration history:
+
+`vendor/bin/migraw squash`
+
+A custom baseline name may be provided:
+
+`vendor/bin/migraw squash mhcv_schema`
+
+The squash process:
+
+1. Verifies that schema migrations are up to date.
+2. Reads the current database schema.
+3. Generates a new baseline migration.
+4. Archives superseded schema migrations.
+5. Preserves population migrations.
+6. Reorders preserved population migrations after the new baseline.
+7. Updates migration history to represent the squashed state.
+
+For MySQL and MariaDB, schema dumping uses the database's actual table definitions, including columns, indexes, constraints, foreign keys, engines, character sets, and collations.
+
+## Philosophy
+
+Migraw intentionally keeps migrations explicit and understandable.
+
+Prefer:
+
+`CREATE TABLE`, `ALTER TABLE`, `CREATE INDEX`, and other SQL statements that clearly describe what happens to the database.
+
+Avoid unnecessary abstractions and migration magic.
+
+Migraw is designed for developers who want migration tracking, rollback, validation, population, and schema management while retaining direct control over SQL.
+
+## Intended Usage
+
+Migraw can be used with custom PHP applications, lightweight frameworks, or existing projects that need database migrations without adopting a full application framework.
+
+It does not require Laravel, Symfony, or another application framework.
