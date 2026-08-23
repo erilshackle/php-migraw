@@ -27,6 +27,9 @@ Write raw SQL when you need complete control, generate smart SQL templates from 
 * SQLite support
 * Migration batches
 * Rollback support
+* Schema squashing
+* Migration baseline generation
+* Population migration preservation during squash
 * Dry-run mode
 * Migration validation
 * Modified migration detection
@@ -295,7 +298,7 @@ Rollback statements should therefore normally appear in reverse dependency order
 
 ---
 
-## Populating Data
+## PopulatorMigration
 
 Migraw can generate idempotent data-population migrations for essential application data.
 
@@ -374,6 +377,107 @@ return new class extends Migration
     }
 };
 ```
+
+---
+
+## Schema Squashing
+
+As a project evolves, its migration history may accumulate many incremental schema changes.
+
+Migraw can consolidate executed schema migrations into a new baseline representing the current database structure:
+
+```bash
+php vendor/bin/migraw squash
+```
+
+Optionally provide a name for the generated baseline:
+
+```bash
+php vendor/bin/migraw squash app_schema
+```
+
+For non-interactive environments:
+
+```bash
+php vendor/bin/migraw squash app_schema --force
+```
+
+The squash process:
+
+1. Verifies that no schema migrations are pending.
+2. Reads the current database schema.
+3. Generates a new baseline migration.
+4. Archives superseded schema migrations.
+5. Preserves `PopulatorMigration` files.
+6. Moves preserved population migrations after the new baseline.
+7. Updates the migration repository to represent the squashed history.
+
+Example:
+
+```text
+Before:
+
+database/migrations/
+├── 20260601_create_users.php
+├── 20260605_create_roles.php
+├── 20260606_populate_roles.php
+└── 20260610_add_status_to_users.php
+
+After:
+
+database/migrations/
+├── 20260823_app_schema.php
+├── 20260823_populate_roles.php
+└── archive/
+    └── 20260823_150000/
+        ├── 20260601_create_users.php
+        ├── 20260605_create_roles.php
+        └── 20260610_add_status_to_users.php
+```
+
+Population migrations are not merged into the schema baseline.
+
+This ensures that deterministic application data can still be populated when the squashed migrations are used to build a new database.
+
+### Why squash?
+
+Squashing is useful when a mature project contains a long history such as:
+
+```text
+create_users
+add_status_to_users
+add_mfa_to_users
+rename_user_status
+add_email_verified_at
+```
+
+A new installation does not need to reproduce every historical intermediate state.
+
+After squashing, the baseline directly creates the current schema.
+
+### Safety
+
+Run all pending migrations before squashing:
+
+```bash
+php vendor/bin/migraw migrate
+php vendor/bin/migraw squash
+```
+
+Migraw refuses to squash the schema while schema migrations are pending.
+
+Schema squashing should first be tested against a disposable or development database before being introduced into an existing production workflow.
+
+### Database support
+
+Schema dumping for `squash` currently supports:
+
+* MySQL
+* MariaDB
+
+Other Migraw features continue to support the databases documented elsewhere in this README.
+
+---
 
 ### Updating existing rows
 
@@ -569,29 +673,36 @@ This keeps environments synchronized and preserves migration history.
 
 `repair --modified` exists as a recovery and maintenance mechanism, not as the standard migration workflow.
 
+Schema squashing is different from modifying an executed migration.
+
+Instead of changing historical migration files in place, `squash` creates a new baseline representing the current schema and archives the superseded schema migrations.
+
+This keeps the active migration history compact without treating individual executed migrations as mutable.
+
 ---
 
 ## Commands
 
-| Command             | Description                                      |
-| ------------------- | ------------------------------------------------ |
-| `init`              | Generate the default configuration               |
-| `init:mysql`        | Generate a MySQL configuration                   |
-| `init:pgsql`        | Generate a PostgreSQL configuration              |
-| `init:sqlite`       | Generate an SQLite configuration                 |
-| `make <name>`       | Create a migration                               |
-| `migrate`           | Execute pending migrations                       |
-| `up`                | Alias for `migrate`                              |
-| `rollback`          | Roll back the last batch                         |
-| `down`              | Alias for `rollback`                             |
-| `reset`             | Roll back all migrations                         |
-| `refresh`           | Roll back and rerun all migrations               |
-| `fresh`             | Rebuild the database from a clean schema         |
-| `status`            | Display migration status                         |
-| `validate`          | Validate migration files                         |
-| `doctor`            | Check configuration and environment              |
-| `repair`            | Remove missing migration records                 |
-| `repair --modified` | Accept current checksums for modified migrations |
+| Command               | Description                                         |
+| --------------------- | --------------------------------------------------- |
+| `init`                | Generate the default configuration                  |
+| `init:mysql`          | Generate a MySQL configuration                      |
+| `init:pgsql`          | Generate a PostgreSQL configuration                 |
+| `init:sqlite`         | Generate an SQLite configuration                    |
+| `make <name>`         | Create a migration                                  |
+| `migrate`             | Execute pending migrations                          |
+| `up`                  | Alias for `migrate`                                 |
+| `rollback`            | Roll back the last batch                            |
+| `down`                | Alias for `rollback`                                |
+| `reset`               | Roll back all migrations                            |
+| `refresh`             | Roll back and rerun all migrations                  |
+| `fresh`               | Rebuild the database from a clean schema            |
+| `status`              | Display migration status                            |
+| `validate`            | Validate migration files                            |
+| `doctor`              | Check configuration and environment                 |
+| `repair`              | Remove missing migration records                    |
+| `repair --modified`   | Accept current checksums for modified migrations    |
+| `squash [name]`       | Consolidate schema migrations into a new baseline   |
 
 Available command options may be displayed with:
 
