@@ -375,11 +375,11 @@ class MigrationRepository
                 ]);
             }
 
-            if ($startedTransaction && $this->pdo->inTransaction()) {
+            if ($startedTransaction) {
                 $this->pdo->commit();
             }
         } catch (\Throwable $e) {
-            if ($startedTransaction && $this->pdo->inTransaction()) {
+            if ($startedTransaction) {
                 $this->pdo->rollBack();
             }
 
