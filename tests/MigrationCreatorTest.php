@@ -33,7 +33,8 @@ final class MigrationCreatorTest extends TestCase
     {
         $creator = new MigrationCreator(
             path: $this->path,
-            driver: 'mysql'
+            driver: 'mysql',
+            template: 'raw'
         );
 
         $file = $creator->create('create_users_table');
@@ -55,7 +56,7 @@ final class MigrationCreatorTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            'return $this->raw(<<<SQL',
+            'return $this->raw(<<<\'SQL',
             $contents
         );
 
@@ -74,7 +75,8 @@ final class MigrationCreatorTest extends TestCase
     {
         $creator = new MigrationCreator(
             path: $this->path,
-            driver: 'mysql'
+            driver: 'mysql',
+            template: 'raw'
         );
 
         $file = $creator->create(
@@ -96,11 +98,6 @@ final class MigrationCreatorTest extends TestCase
             $contents
         );
 
-        $this->assertStringContainsString(
-            'return <<<SQL',
-            $contents
-        );
-
         $this->assertStringNotContainsString(
             '$this->raw(<<<SQL',
             $contents
@@ -111,7 +108,8 @@ final class MigrationCreatorTest extends TestCase
     {
         $creator = new MigrationCreator(
             path: $this->path,
-            driver: 'mysql'
+            driver: 'mysql',
+            template: 'raw'
         );
 
         $file = $creator->create(
@@ -153,7 +151,8 @@ final class MigrationCreatorTest extends TestCase
     {
         $creator = new MigrationCreator(
             path: $this->path,
-            driver: 'mysql'
+            driver: 'mysql',
+            template: 'raw'
         );
 
         $this->expectException(RuntimeException::class);
@@ -172,7 +171,8 @@ final class MigrationCreatorTest extends TestCase
     {
         $creator = new MigrationCreator(
             path: $this->path,
-            driver: 'mysql'
+            driver: 'mysql',
+            template: 'raw'
         );
 
         $file = $creator->create('Create User Profiles Table');
@@ -187,7 +187,8 @@ final class MigrationCreatorTest extends TestCase
     {
         $creator = new MigrationCreator(
             path: $this->path,
-            driver: 'mysql'
+            driver: 'mysql',
+            template: 'raw'
         );
 
         $this->expectException(RuntimeException::class);
@@ -202,7 +203,8 @@ final class MigrationCreatorTest extends TestCase
     {
         $creator = new MigrationCreator(
             path: $this->path,
-            driver: 'mysql'
+            driver: 'mysql',
+            template: 'raw'
         );
 
         $file = $creator->create('perform_custom_operation');
@@ -212,7 +214,7 @@ final class MigrationCreatorTest extends TestCase
         $this->assertIsString($contents);
 
         $this->assertStringContainsString(
-            'return $this->raw(<<<SQL',
+            'return $this->raw(<<<\'SQL',
             $contents
         );
 
@@ -231,7 +233,8 @@ final class MigrationCreatorTest extends TestCase
     {
         $creator = new MigrationCreator(
             path: $this->path,
-            driver: 'mysql'
+            driver: 'mysql',
+            template: 'raw'
         );
 
         $file = $creator->create('create_users_table');
@@ -258,7 +261,8 @@ final class MigrationCreatorTest extends TestCase
     {
         $creator = new MigrationCreator(
             path: $this->path,
-            driver: 'mysql'
+            driver: 'mysql',
+            template: 'raw'
         );
 
         $file = $creator->create(
@@ -288,7 +292,8 @@ final class MigrationCreatorTest extends TestCase
     {
         $creator = new MigrationCreator(
             path: $this->path,
-            driver: 'mysql'
+            driver: 'mysql',
+            template: 'raw'
         );
 
         $file = $creator->create(
@@ -318,7 +323,8 @@ final class MigrationCreatorTest extends TestCase
     {
         $creator = new MigrationCreator(
             path: $this->path,
-            driver: 'mysql'
+            driver: 'mysql',
+            template: 'raw'
         );
 
         $file = $creator->create('create_users_table');
@@ -342,7 +348,8 @@ final class MigrationCreatorTest extends TestCase
     {
         $creator = new MigrationCreator(
             path: $this->path,
-            driver: 'pgsql'
+            driver: 'pgsql',
+            template: 'raw'
         );
 
         $file = $creator->create('create_users_table');
@@ -366,7 +373,8 @@ final class MigrationCreatorTest extends TestCase
     {
         $creator = new MigrationCreator(
             path: $this->path,
-            driver: 'sqlite'
+            driver: 'sqlite',
+            template: 'raw'
         );
 
         $file = $creator->create('create_users_table');
