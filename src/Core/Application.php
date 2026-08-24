@@ -115,6 +115,7 @@ final class Application
         };
     }
 
+
     protected function migrate(Migrator $migrator): void
     {
         $executed = $migrator->migrate();
@@ -358,14 +359,11 @@ final class Application
         }
 
         try {
-            $name = ($config['connection']['driver'] ?? '') == 'sqlite'
-                ? $config['connection']['sqlite_path']
-                : $config['connection']['database'];
             $pdo->query('SELECT 1');
-            $this->doctorOk("Database connection ($name)");
+            $this->doctorOk("Database connection");
         } catch (Throwable $e) {
             $issues++;
-            $this->doctorFail("Database connection ()", $e->getMessage());
+            $this->doctorFail("Database connection", $e->getMessage());
         }
 
         try {
@@ -375,6 +373,20 @@ final class Application
             $issues++;
             $this->doctorFail('Driver', $e->getMessage());
         }
+
+        // try {
+        //     $name = match ($driver ?? null) {
+        //         'mysql' => $pdo->query("SELECT DATABASE()")->fetchColumn(),
+        //         'pgsql' => $pdo->query("SELECT current_database()")->fetchColumn(),
+        //         'sqlite' => $pdo->query("PRAGMA database_list")->fetch(PDO::FETCH_ASSOC)['file'] ?? 'main',
+        //         default => throw new \Exception("Unknown Driver"),
+        //     };
+        //     $this->doctorOk('Target', basename($name));
+        // } catch (Throwable $e) {
+        //     $issues++;
+        //     $this->doctorFail('Target', $e->getMessage());
+        // }
+
 
         if (is_dir($path)) {
             $this->doctorOk('Migrations path', $this->paths->relative($path));

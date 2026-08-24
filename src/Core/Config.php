@@ -238,9 +238,10 @@ return [
     |
     | Migraw also accepts:
     |
-    | - an existing PDO instance;
-    | - a Closure returning PDO;
-    | - any callable returning PDO.
+    | - a PDO instance;
+    | - a Closure or callable returning PDO;
+    | - a Closure or callable returning a supported connection object;
+    | - an object exposing getPdo() or pdo().
     |
     | Examples:
     |
