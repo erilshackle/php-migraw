@@ -14,7 +14,7 @@ class MigrationCreator
     public function __construct(
         protected string $path,
         protected string $driver = 'mysql',
-        protected string $template = 'fluent'
+        protected string $template = 'raw'
     ) {
         $this->template = strtolower(trim($this->template));
 
