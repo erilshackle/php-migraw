@@ -56,7 +56,7 @@ final class MigrationSquasher
         if ($pendingSchema !== []) {
             throw new RuntimeException(
                 "Cannot squash while schema migrations are pending:\n  - "
-                . implode("\n  - ", $pendingSchema)
+                    . implode("\n  - ", $pendingSchema)
             );
         }
 
@@ -194,8 +194,8 @@ final class MigrationSquasher
 
         $files = glob(
             rtrim($this->path, DIRECTORY_SEPARATOR)
-            . DIRECTORY_SEPARATOR
-            . '*.php'
+                . DIRECTORY_SEPARATOR
+                . '*.php'
         ) ?: [];
 
         sort($files);
@@ -307,7 +307,9 @@ final class MigrationSquasher
      */
     protected function buildMigration(array $schema): string
     {
-        $up = ['SET FOREIGN_KEY_CHECKS = 0;'];
+        $up = [
+            'SET FOREIGN_KEY_CHECKS = 0;',
+        ];
 
         foreach ($schema as $createSql) {
             $up[] = $createSql;
@@ -315,13 +317,21 @@ final class MigrationSquasher
 
         $up[] = 'SET FOREIGN_KEY_CHECKS = 1;';
 
-        $down = ['SET FOREIGN_KEY_CHECKS = 0;'];
+        $down = [
+            'SET FOREIGN_KEY_CHECKS = 0;',
+        ];
 
         foreach (array_reverse(array_keys($schema)) as $table) {
-            $down[] = 'DROP TABLE IF EXISTS ' . $this->quoteIdentifier($table) . ';';
+            $down[] = sprintf(
+                'DROP TABLE IF EXISTS %s;',
+                $this->quoteIdentifier($table)
+            );
         }
 
         $down[] = 'SET FOREIGN_KEY_CHECKS = 1;';
+
+        $upStatements = $this->renderStatements($up);
+        $downStatements = $this->renderStatements($down);
 
         return <<<PHP
 <?php
@@ -337,14 +347,14 @@ return new class extends Migration
     public function up(): string|array|SqlStatement
     {
         return [
-{$this->renderStatements($up)}
+{$upStatements}
         ];
     }
 
     public function down(): string|array|SqlStatement
     {
         return [
-{$this->renderStatements($down)}
+{$downStatements}
         ];
     }
 };
@@ -365,11 +375,11 @@ PHP;
             $blocks[] = <<<PHP
             \$this->raw(<<<'SQL'
 {$statement}
-SQL),
+SQL)
 PHP;
         }
 
-        return implode("\n", $blocks);
+        return implode(",\n\n", $blocks) . ',';
     }
 
     protected function pathFor(string $migration): string
