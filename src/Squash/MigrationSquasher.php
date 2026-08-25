@@ -33,6 +33,7 @@ final class MigrationSquasher
      * @return array{
      *     migration:string,
      *     file:string,
+     *     manifest:string,
      *     archive:string,
      *     tables:string[],
      *     archived:string[],
@@ -51,6 +52,8 @@ final class MigrationSquasher
         [$schemaFiles, $populationFiles] = $this->classifyMigrations($files);
 
         $ran = $this->repository->getRan();
+        $history = $this->repository->getHistory();
+
         $pendingSchema = array_values(array_diff(array_keys($schemaFiles), $ran));
 
         if ($pendingSchema !== []) {
@@ -79,9 +82,7 @@ final class MigrationSquasher
             $baselineTime
         );
 
-        $contents = $this->buildMigration($schema);
-
-        if (file_put_contents($file, $contents) === false) {
+        if (file_put_contents($file, $this->buildMigration($schema)) === false) {
             throw new RuntimeException("Unable to create squash migration: {$file}");
         }
 
@@ -95,11 +96,20 @@ final class MigrationSquasher
         $archive = $this->archivePath();
         $archived = [];
         $renamedPopulators = [];
+        $repositoryReplaced = false;
+
+        $manifest = $this->buildManifest(
+            migration: $migration,
+            file: $file,
+            checksum: $checksum,
+            schemaFiles: $schemaFiles,
+            populationFiles: $populationFiles,
+            populationRenames: $populationRenames,
+            history: $history
+        );
 
         try {
-            if ($schemaFiles !== []) {
-                $this->ensureDirectory($archive);
-            }
+            $manifestFile = $this->writeManifest($archive, $manifest);
 
             foreach ($schemaFiles as $migrationName => $oldFile) {
                 $destination = $archive . DIRECTORY_SEPARATOR . basename($oldFile);
@@ -149,7 +159,22 @@ final class MigrationSquasher
                 $checksum,
                 $preservedRan
             );
+
+            $repositoryReplaced = true;
+
+            $manifest['status'] = 'completed';
+            $manifest['completed_at'] = date(DATE_ATOM);
+
+            $this->writeManifest($archive, $manifest);
         } catch (Throwable $e) {
+            if ($repositoryReplaced) {
+                try {
+                    $this->repository->restoreHistory($history);
+                } catch (Throwable) {
+                    // Preserve original exception.
+                }
+            }
+
             foreach (array_reverse($renamedPopulators, true) as $rename) {
                 if (file_exists($rename['to'])) {
                     @rename($rename['to'], $rename['from']);
@@ -165,6 +190,9 @@ final class MigrationSquasher
             }
 
             @unlink($file);
+            @unlink($archive . DIRECTORY_SEPARATOR . 'manifest.json');
+            @unlink($archive . DIRECTORY_SEPARATOR . 'manifest.json.tmp');
+
             $this->removeDirectoryIfEmpty($archive);
 
             throw $e;
@@ -174,6 +202,7 @@ final class MigrationSquasher
             'migration' => $migration,
             'file' => $file,
             'archive' => $archive,
+            'manifest' => $manifestFile,
             'tables' => array_keys($schema),
             'archived' => array_keys($archived),
             'populators' => array_map(
@@ -300,6 +329,122 @@ final class MigrationSquasher
         }
 
         return $this->normalizeName($migration);
+    }
+
+    /**
+     * Build the squash recovery manifest.
+     *
+     * @param array<string,string> $schemaFiles
+     * @param array<string,string> $populationFiles
+     * @param array<string,array{from:string,to:string,name:string}> $populationRenames
+     * @param array<int,array<string,mixed>> $history
+     *
+     * @return array<string,mixed>
+     */
+    protected function buildManifest(
+        string $migration,
+        string $file,
+        string $checksum,
+        array $schemaFiles,
+        array $populationFiles,
+        array $populationRenames,
+        array $history
+    ): array {
+        $ran = [];
+
+        foreach ($history as $row) {
+            $ran[$row['migration']] = true;
+        }
+
+        $schema = [];
+
+        foreach ($schemaFiles as $name => $schemaFile) {
+            $schema[] = [
+                'migration' => $name,
+                'file' => basename($schemaFile),
+            ];
+        }
+
+        $populators = [];
+
+        foreach ($populationFiles as $name => $populationFile) {
+            $rename = $populationRenames[$name] ?? null;
+
+            $populators[] = [
+                'migration' => $name,
+                'file' => basename($populationFile),
+
+                'renamed_to' => $rename['name'] ?? null,
+                'renamed_file' => isset($rename['to'])
+                    ? basename($rename['to'])
+                    : null,
+
+                'executed' => isset($ran[$name]),
+            ];
+        }
+
+        return [
+            'version' => 1,
+
+            /*
+            * "prepared" means the manifest was written before filesystem and
+            * repository changes were completed.
+            */
+            'status' => 'prepared',
+
+            'created_at' => date(DATE_ATOM),
+
+            'baseline' => [
+                'migration' => $migration,
+                'file' => basename($file),
+                'checksum' => $checksum,
+            ],
+
+            /*
+            * Exact repository snapshot before squash.
+            */
+            'repository' => array_values($history),
+
+            /*
+            * Schema migrations moved to archive/.
+            */
+            'schema' => $schema,
+
+            /*
+            * Population migrations remain active but are retimestamped.
+            */
+            'populators' => $populators,
+        ];
+    }
+
+    /**
+     * Persist a squash manifest atomically.
+     *
+     * @param array<string,mixed> $manifest
+     */
+    protected function writeManifest(
+        string $archive,
+        array $manifest
+    ): string {
+        $this->ensureDirectory($archive);
+
+        $file = $archive . DIRECTORY_SEPARATOR . 'manifest.json';
+
+        $temporary = $file . '.tmp';
+
+        $json = json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+
+        if (file_put_contents($temporary, $json . PHP_EOL) === false) {
+            throw new RuntimeException("Unable to write squash manifest: {$file}");
+        }
+
+        if (! rename($temporary, $file)) {
+            @unlink($temporary);
+
+            throw new RuntimeException("Unable to finalize squash manifest: {$file}");
+        }
+
+        return $file;
     }
 
     /**

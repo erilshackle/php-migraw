@@ -205,6 +205,27 @@ class MigrationRepository
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 
+    /**
+     * Return the complete migration repository state.
+     *
+     * @return array<int, array{
+     *     migration:string,
+     *     batch:int,
+     *     checksum:string,
+     *     executed_at:string
+     * }>
+     */
+    public function getHistory(): array
+    {
+        $stmt = $this->pdo->query(
+            'SELECT migration, batch, checksum, executed_at
+         FROM migrations
+         ORDER BY id ASC'
+        );
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function getRanForRollback(): array
     {
         $this->ensureTableExists();
@@ -380,6 +401,40 @@ class MigrationRepository
             }
         } catch (\Throwable $e) {
             if ($startedTransaction) {
+                $this->pdo->rollBack();
+            }
+
+            throw $e;
+        }
+    }
+
+
+    public function restoreHistory(array $history): void
+    {
+        $this->pdo->beginTransaction();
+
+        try {
+            $this->pdo->exec('DELETE FROM migrations');
+
+            $stmt = $this->pdo->prepare(
+                'INSERT INTO migrations
+                (migration, batch, checksum, executed_at)
+             VALUES
+                (:migration, :batch, :checksum, :executed_at)'
+            );
+
+            foreach ($history as $row) {
+                $stmt->execute([
+                    'migration' => $row['migration'],
+                    'batch' => $row['batch'],
+                    'checksum' => $row['checksum'],
+                    'executed_at' => $row['executed_at'],
+                ]);
+            }
+
+            $this->pdo->commit();
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
 
