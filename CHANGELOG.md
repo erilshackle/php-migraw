@@ -2,6 +2,29 @@
 
 *Changelog created using the [Simple Changelog](https://marketplace.visualstudio.com/items?itemName=tobiaswaelde.vscode-simple-changelog) extension for VS Code.*
 
+
+## [1.4.1] - 2026-08-25
+
+### Added
+
+* Unsquash operation
+
+### Changed
+
+
+
+
+## [1.3.1] - 2026-08-24
+
+### Added
+* squash now has history and manifest.json file
+
+### Changed
+* enhance connection resolution for supported connection types
+
+### Fixed
+* change default database driver to sqlite and set migration template to raw
+
 ## [1.3.0] - 2026-08-23
 
 ### Added
