@@ -1,0 +1,48 @@
+site_name: Migraw
+site_description: SQL-first migrations for PHP. Write SQL. Not magic.
+site_url: https://erilshackle.github.io/php-migraw/
+
+repo_name: erilshackle/php-migraw
+repo_url: https://github.com/erilshackle/php-migraw
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.footer
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Configuration: configuration.md
+  - Migrations:
+      - Overview: migrations/index.md
+      - Raw SQL: migrations/raw.md
+      - Fluent: migrations/fluent.md
+      - Population: migrations/population.md
+  - Commands:
+      - Overview: commands/index.md
+      - Squash & Unsquash: commands/squash.md
+  - Database Support: database-support.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+
+copyright: Copyright &copy; 2026 Eril TS Carvalho
