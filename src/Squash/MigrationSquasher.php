@@ -7,6 +7,8 @@ use DateTimeImmutable;
 use Eril\Migraw\Migration;
 use Eril\Migraw\MigrationRepository;
 use Eril\Migraw\PopulatorMigration;
+use Eril\Migraw\Squash\Dumper\SchemaDriverDumper;
+use Eril\Migraw\Squash\Dumper\SchemaDumper;
 use RuntimeException;
 use Throwable;
 
@@ -423,37 +425,32 @@ final class MigrationSquasher
     
 
     /**
-     * @param array<string,string> $schema
+     * @param array<string,array<string>> $schema
      */
     protected function buildMigration(array $schema): string
-    {
-        $up = [
-            'SET FOREIGN_KEY_CHECKS = 0;',
-        ];
+{
+    $up = $this->dumper->beforeCreate();
 
-        foreach ($schema as $createSql) {
-            $up[] = $createSql;
+    foreach ($schema as $statements) {
+        foreach ($statements as $statement) {
+            $up[] = $statement;
         }
+    }
 
-        $up[] = 'SET FOREIGN_KEY_CHECKS = 1;';
+    array_push($up, ...$this->dumper->afterCreate());
 
-        $down = [
-            'SET FOREIGN_KEY_CHECKS = 0;',
-        ];
+    $down = $this->dumper->beforeDrop();
 
-        foreach (array_reverse(array_keys($schema)) as $table) {
-            $down[] = sprintf(
-                'DROP TABLE IF EXISTS %s;',
-                $this->quoteIdentifier($table)
-            );
-        }
+    foreach (array_reverse(array_keys($schema)) as $table) {
+        $down[] = $this->dumper->dropTable($table);
+    }
 
-        $down[] = 'SET FOREIGN_KEY_CHECKS = 1;';
+    array_push($down, ...$this->dumper->afterDrop());
 
-        $upStatements = $this->renderStatements($up);
-        $downStatements = $this->renderStatements($down);
+    $upStatements = $this->renderStatements($up);
+    $downStatements = $this->renderStatements($down);
 
-        return <<<PHP
+    return <<<PHP
 <?php
 
 use Eril\\Migraw\\Migration;
@@ -480,7 +477,7 @@ return new class extends Migration
 };
 
 PHP;
-    }
+}
 
     /**
      * @param string[] $statements
@@ -547,8 +544,4 @@ PHP;
         return $name;
     }
 
-    protected function quoteIdentifier(string $identifier): string
-    {
-        return '`' . str_replace('`', '``', $identifier) . '`';
-    }
 }
