@@ -176,7 +176,7 @@ for the current CLI reference.
 | Fluent migrations     |        ✓        |      ✓     |    ✓    |
 | Population migrations |        ✓        |      ✓     |    ✓    |
 | Checksums / repair    |        ✓        |      ✓     |    ✓    |
-| Schema squash         |        ✓        |   Planned  | Planned |
+| Schema squash         |        ✓        |      ✓     |    ✓    |
 
 ## Documentation
 
