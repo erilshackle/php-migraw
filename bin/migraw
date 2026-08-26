@@ -31,7 +31,7 @@
  * --------------------------------------------------------------------------
  */
 
-use Eril\Migraw\Core\Application;
+use Eril\Migraw\Core\Migraw;
 
 $autoloadFiles = [
     __DIR__ . '/../vendor/autoload.php',
@@ -42,7 +42,7 @@ $autoloadFiles = [
 foreach ($autoloadFiles as $autoload) {
     if (file_exists($autoload)) {
         require_once $autoload;
-        exit((new Application())->run($_SERVER['argv']));
+        exit((new Migraw())->run($_SERVER['argv']));
     }
 }
 
