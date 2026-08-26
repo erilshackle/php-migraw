@@ -16,6 +16,9 @@ use Throwable;
  */
 final class MigrationSquasher
 {
+
+    use Manifest;
+
     public function __construct(
         protected string $path,
         protected SchemaDumper $dumper,
@@ -417,35 +420,7 @@ final class MigrationSquasher
         ];
     }
 
-    /**
-     * Persist a squash manifest atomically.
-     *
-     * @param array<string,mixed> $manifest
-     */
-    protected function writeManifest(
-        string $archive,
-        array $manifest
-    ): string {
-        $this->ensureDirectory($archive);
-
-        $file = $archive . DIRECTORY_SEPARATOR . 'manifest.json';
-
-        $temporary = $file . '.tmp';
-
-        $json = json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
-
-        if (file_put_contents($temporary, $json . PHP_EOL) === false) {
-            throw new RuntimeException("Unable to write squash manifest: {$file}");
-        }
-
-        if (! rename($temporary, $file)) {
-            @unlink($temporary);
-
-            throw new RuntimeException("Unable to finalize squash manifest: {$file}");
-        }
-
-        return $file;
-    }
+    
 
     /**
      * @param array<string,string> $schema
@@ -544,16 +519,7 @@ PHP;
             . date('Ymd_His');
     }
 
-    protected function ensureDirectory(string $path): void
-    {
-        if (is_dir($path)) {
-            return;
-        }
-
-        if (! mkdir($path, 0775, true) && ! is_dir($path)) {
-            throw new RuntimeException("Unable to create archive directory: {$path}");
-        }
-    }
+    
 
     protected function removeDirectoryIfEmpty(string $path): void
     {
