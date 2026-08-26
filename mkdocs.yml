@@ -27,6 +27,8 @@ nav:
   - Commands:
       - Overview: commands/index.md
       - Squash & Unsquash: commands/squash.md
+  - Guides:
+      - Common Workflows: guides/common-workflows.md
   - Database Support: database-support.md
 
 markdown_extensions:
