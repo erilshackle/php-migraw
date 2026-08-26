@@ -3,16 +3,34 @@
 *Changelog created using the [Simple Changelog](https://marketplace.visualstudio.com/items?itemName=tobiaswaelde.vscode-simple-changelog) extension for VS Code.*
 
 
-## [1.4.1] - 2026-08-25
+## [1.4.0] - 2026-08-26
 
 ### Added
 
-* Unsquash operation
+* Added the `unsquash` command for restoring migration history from a previous squash.
+* Added squash recovery through `manifest.json`.
+* Added migration repository snapshots for squash and unsquash operations.
+* Added restoration of archived schema migrations during unsquash.
+* Added restoration of retimestamped population migrations during unsquash.
+* Added recovery of migration batches, checksums and execution history.
+* Added MkDocs documentation with guides for configuration, migrations, commands, population, squash and database support.
+* Added dedicated `llms.txt` documentation index and `llms-full.txt` reference for AI coding assistants.
 
 ### Changed
 
+* Refactored the CLI application into `Migraw`, `RuntimeContext` and `CommandHandler`.
+* Renamed the main `Application` entry point to `Migraw`.
+* Improved squash safety with recoverable filesystem and migration repository state.
+* Improved squash archives to preserve enough metadata for reversing a squash.
+* Improved documentation for raw and fluent migrations, command arguments and CLI options.
+* Reduced the README to focus on installation, quick start, core features and documentation links.
 
+### Fixed
 
+* Fixed squash recovery when an operation fails after migration files have been archived.
+* Fixed migration repository recovery when squash fails after replacing migration history.
+* Fixed squash archive handling so a single archive path is used throughout the operation.
+* Fixed population migration restoration when reversing a squash.
 
 ## [1.3.1] - 2026-08-24
 
