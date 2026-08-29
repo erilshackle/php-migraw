@@ -217,10 +217,12 @@ class MigrationRepository
      */
     public function getHistory(): array
     {
+        $this->ensureTableExists();
+
         $stmt = $this->pdo->query(
-            'SELECT migration, batch, checksum, executed_at
-         FROM migrations
-         ORDER BY id ASC'
+            "SELECT migration, batch, checksum, executed_at
+         FROM {$this->table}
+         ORDER BY id ASC"
         );
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -414,13 +416,13 @@ class MigrationRepository
         $this->pdo->beginTransaction();
 
         try {
-            $this->pdo->exec('DELETE FROM migrations');
+            $this->pdo->exec("DELETE FROM {$this->table}");
 
             $stmt = $this->pdo->prepare(
-                'INSERT INTO migrations
-                (migration, batch, checksum, executed_at)
-             VALUES
-                (:migration, :batch, :checksum, :executed_at)'
+                "INSERT INTO {$this->table}
+                    (migration, batch, checksum, executed_at)
+                VALUES
+                    (:migration, :batch, :checksum, :executed_at)"
             );
 
             foreach ($history as $row) {

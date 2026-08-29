@@ -125,7 +125,8 @@ final class MigrationUnsquasher
             $manifest['status'] = 'unsquashed';
             $manifest['unsquashed_at'] = date(DATE_ATOM);
 
-            $this->writeManifest($manifestFile, $manifest);
+            // $this->writeManifest($manifestFile, $manifest);
+            $this->writeManifest($archive, $manifest);
         } catch (Throwable $e) {
             if ($repositoryRestored) {
                 try {

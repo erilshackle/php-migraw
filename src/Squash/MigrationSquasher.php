@@ -42,7 +42,7 @@ final class MigrationSquasher
      *     archive:string,
      *     tables:string[],
      *     archived:string[],
-     *     populators:array<string,string>
+     *     populators:string[]
      * }
      */
     public function squash(string $name = 'schema'): array
@@ -210,9 +210,11 @@ final class MigrationSquasher
             'manifest' => $manifestFile,
             'tables' => array_keys($schema),
             'archived' => array_keys($archived),
-            'populators' => array_map(
-                static fn(array $rename): string => $rename['name'],
-                $renamedPopulators
+            'populators' => array_values(
+                array_map(
+                    static fn(array $rename): string => $rename['name'],
+                    $renamedPopulators
+                )
             ),
         ];
     }
@@ -422,35 +424,35 @@ final class MigrationSquasher
         ];
     }
 
-    
+
 
     /**
      * @param array<string,array<string>> $schema
      */
     protected function buildMigration(array $schema): string
-{
-    $up = $this->dumper->beforeCreate();
+    {
+        $up = $this->dumper->beforeCreate();
 
-    foreach ($schema as $statements) {
-        foreach ($statements as $statement) {
-            $up[] = $statement;
+        foreach ($schema as $statements) {
+            foreach ($statements as $statement) {
+                $up[] = $statement;
+            }
         }
-    }
 
-    array_push($up, ...$this->dumper->afterCreate());
+        array_push($up, ...$this->dumper->afterCreate());
 
-    $down = $this->dumper->beforeDrop();
+        $down = $this->dumper->beforeDrop();
 
-    foreach (array_reverse(array_keys($schema)) as $table) {
-        $down[] = $this->dumper->dropTable($table);
-    }
+        foreach (array_reverse(array_keys($schema)) as $table) {
+            $down[] = $this->dumper->dropTable($table);
+        }
 
-    array_push($down, ...$this->dumper->afterDrop());
+        array_push($down, ...$this->dumper->afterDrop());
 
-    $upStatements = $this->renderStatements($up);
-    $downStatements = $this->renderStatements($down);
+        $upStatements = $this->renderStatements($up);
+        $downStatements = $this->renderStatements($down);
 
-    return <<<PHP
+        return <<<PHP
 <?php
 
 use Eril\\Migraw\\Migration;
@@ -477,7 +479,7 @@ return new class extends Migration
 };
 
 PHP;
-}
+    }
 
     /**
      * @param string[] $statements
@@ -516,7 +518,7 @@ PHP;
             . date('Ymd_His');
     }
 
-    
+
 
     protected function removeDirectoryIfEmpty(string $path): void
     {
@@ -543,5 +545,4 @@ PHP;
 
         return $name;
     }
-
 }

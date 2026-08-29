@@ -3,6 +3,7 @@
 namespace Eril\Migraw;
 
 use Eril\Migraw\Sql\SqlStatement;
+use Eril\Migraw\Squash\MigrationSquashAdopter;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -31,6 +32,7 @@ class Migrator
      * @var string[] SQL collected during pretend/dry-run mode.
      */
     protected array $pretendedSql = [];
+
 
     /**
      * @param PDO $pdo Database connection.
@@ -64,31 +66,52 @@ class Migrator
     /**
      * Run all pending migrations.
      *
+     * This may first reconcile an existing database with squash checkpoints.
+     *
      * @return string[] Executed migration names.
      */
     public function migrate(): array
     {
+        $reconciliation = $this->prepareMigrationHistory();
+
         $files = $this->getMigrationFiles();
         $ran = $this->repository->getRan();
-        $pending = array_diff(array_keys($files), $ran);
 
-        if ($pending === []) {
-            return [];
+        if ($this->pretending) {
+            $ran = array_values(array_unique([
+                ...$ran,
+                ...$reconciliation['assumed_ran'],
+            ]));
         }
 
-        $batch = $this->repository->getNextBatchNumber();
-        $executed = [];
+        $pending = array_diff(
+            array_keys($files),
+            $ran
+        );
+
+        $executed = $reconciliation['caught_up'];
+
+        if ($pending === []) {
+            return $executed;
+        }
+
+        $batch = $this->pretending
+            ? 1
+            : $this->repository->getNextBatchNumber();
 
         foreach ($pending as $migrationName) {
-            $migration = $this->loadMigration($files[$migrationName]);
+            $file = $files[$migrationName];
+            $migration = $this->loadMigration($file);
 
-            $this->runSql($migration->up());
+            $this->runSql(
+                $migration->up()
+            );
 
             if (! $this->pretending) {
                 $this->repository->log(
                     $migrationName,
                     $batch,
-                    $this->checksum($files[$migrationName])
+                    $this->checksum($file)
                 );
             }
 
@@ -131,6 +154,22 @@ class Migrator
         }
 
         return $rolledBack;
+    }
+
+    /**
+     * Reconcile migration history with available squash checkpoints.
+     *
+     * @return array{caught_up:string[],adopted:string[], assumed_ran:string[]}
+     */
+    protected function prepareMigrationHistory(): array
+    {
+        return (new MigrationSquashAdopter(
+            $this->path,
+            $this->repository
+        ))->reconcile(
+            fn($statements) => $this->runSql($statements),
+            $this->pretending
+        );
     }
 
     /**

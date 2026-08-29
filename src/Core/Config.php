@@ -191,7 +191,7 @@ final class Config
 
         $defaultSqlitePath = var_export(
             $defaults['sqlite_path'],
-            true
+            true  
         );
 
         return <<<PHP
