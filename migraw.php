@@ -41,9 +41,10 @@ return [
     |
     | Migraw also accepts:
     |
-    | - an existing PDO instance;
-    | - a Closure returning PDO;
-    | - any callable returning PDO.
+    | - a PDO instance;
+    | - a Closure or callable returning PDO;
+    | - a Closure or callable returning a supported connection object;
+    | - an object exposing getPdo() or pdo().
     |
     | Examples:
     |
@@ -67,7 +68,7 @@ return [
         'password' => $_ENV['DB_PASSWORD'] ?? '',
         'charset' => $_ENV['DB_CHARSET'] ?? 'utf8mb4',
 
-        'sqlite_path' => $_ENV['DB_SQLITE_PATH'] ?? 'database/database.sqlite',
+        'sqlite_path' => 'database/production.sqlite',
     ],
 
 ];

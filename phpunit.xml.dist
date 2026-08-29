@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.0/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true">
+    <testsuites>
+        <testsuite name="Migraw Test Suite">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+
+    <php>
+        <env name="MIGRAW_TEST_MYSQL_DSN" value=""/>
+        <env name="MIGRAW_TEST_MYSQL_USER" value=""/>
+        <env name="MIGRAW_TEST_MYSQL_PASSWORD" value=""/>
+
+        <env name="MIGRAW_TEST_PGSQL_DSN" value=""/>
+        <env name="MIGRAW_TEST_PGSQL_USER" value=""/>
+        <env name="MIGRAW_TEST_PGSQL_PASSWORD" value=""/>
+    </php>
+</phpunit>

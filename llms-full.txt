@@ -581,10 +581,7 @@ General Migraw migration functionality supports:
 
 The corresponding PDO driver must be installed.
 
-Schema squashing currently supports:
-
-- MySQL
-- MariaDB
+Schema squashing supports MySQL, MariaDB, PostgreSQL and SQLite.
 
 ## Guidance for AI Code Generation
 
