@@ -131,7 +131,9 @@ Compact an old migration history into a new schema baseline:
 php vendor/bin/migraw squash
 ```
 
-Migraw archives the previous schema migrations and keeps a recovery manifest.
+Migraw creates a new baseline from the current database schema, archives the superseded schema migrations, preserves population migrations, and writes a recovery manifest.
+
+Existing installations can safely receive a squashed migration history through the normal migration command:
 
 Restore the previous migration history with:
 
@@ -170,13 +172,15 @@ for the current CLI reference.
 
 ## Database Support
 
-| Feature               | MySQL / MariaDB | PostgreSQL |  SQLite |
-| --------------------- | :-------------: | :--------: | :-----: |
-| Raw migrations        |        ✓        |      ✓     |    ✓    |
-| Fluent migrations     |        ✓        |      ✓     |    ✓    |
-| Population migrations |        ✓        |      ✓     |    ✓    |
-| Checksums / repair    |        ✓        |      ✓     |    ✓    |
-| Schema squash         |        ✓        |      ✓     |    ✓    |
+| Feature               | MySQL / MariaDB | PostgreSQL | SQLite |
+| --------------------- | :-------------: | :--------: | :----: |
+| Raw migrations        |        ✓        |      ✓     |    ✓   |
+| Fluent migrations     |        ✓        |      ✓     |    ✓   |
+| Population migrations |        ✓        |      ✓     |    ✓   |
+| Checksums / repair    |        ✓        |      ✓     |    ✓   |
+| Schema squash         |        ✓        |      ✓     |    ✓   |
+| Squash adoption       |        ✓        |      ✓     |    ✓   |
+
 
 ## Documentation
 

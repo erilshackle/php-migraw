@@ -2,6 +2,53 @@
 
 *Changelog created using the [Simple Changelog](https://marketplace.visualstudio.com/items?itemName=tobiaswaelde.vscode-simple-changelog) extension for VS Code.*
 
+## [1.5.0] - 2026-08-29
+
+### Added
+
+* Added automatic squash adoption during normal `migrate` operations.
+* Added automatic catch-up for databases that are behind a committed squash checkpoint.
+* Added support for executing missing pre-squash migrations directly from committed squash archives.
+* Added migration history reconciliation through completed squash manifests.
+* Added support for sequential squash adoption across multiple squash checkpoints.
+* Added population migration resolution across multiple squash retimestamps.
+* Added dry-run support for squash reconciliation with `--pretend`.
+* Added checksum validation for archived migrations and preserved population migrations during squash adoption.
+* Added integration tests covering squash adoption, production catch-up and pretend reconciliation.
+
+### Changed
+
+* `migrate` now reconciles existing migration history with available squash checkpoints before resolving pending migrations.
+* Squash archives can now be committed and used as migration history checkpoints for existing installations.
+* Existing databases at the pre-squash state now adopt the generated baseline without executing its schema SQL.
+* Databases behind a squash checkpoint now execute only the missing archived migrations before adopting the baseline.
+* Preserved population migrations now remain correctly represented when a squash baseline is adopted.
+* Pretend mode now simulates the post-reconciliation migration state without modifying the database or migration repository.
+* Migration repository history remains the source of truth after squash reconciliation.
+
+### Fixed
+
+* Fixed deployment of squashed migration histories to existing databases that had not yet adopted the generated baseline.
+* Fixed squashed deployments attempting to execute baseline schema SQL against already-existing database structures.
+* Fixed databases behind the pre-squash migration history being unable to safely migrate after archived migrations were replaced by a baseline.
+* Fixed pretend mode incorrectly treating an adopted squash baseline as a pending migration.
+* Fixed preserved population migrations potentially being executed again during pretend reconciliation.
+* Fixed squash adoption across multiple checkpoints with repeatedly retimestamped population migrations.
+
+
+## [1.4.1] - 2026-08-26
+
+### Added
+
+* Added PostgreSQL schema squash support.
+* Added SQLite schema squash support.
+* Added driver-specific schema dumpers for MySQL, PostgreSQL and SQLite.
+
+### Changed
+
+* Refactored schema dumping into driver-specific implementations.
+* Made squash baseline generation database-driver aware.
+
 
 ## [1.4.0] - 2026-08-26
 
