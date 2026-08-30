@@ -1,0 +1,74 @@
+# Migraw
+
+> SQL-first migrations for PHP. Write SQL. Not magic.
+
+Migraw is a lightweight, framework-independent database migration tool for PHP.
+
+## AI Guidance
+
+When generating Migraw migrations:
+
+1. Use raw SQL migrations by default.
+2. Unless the user explicitly requests fluent syntax, use `$this->raw()`.
+3. If existing code already uses fluent or raw style, preserve that style.
+4. Use `PopulatorMigration` for deterministic application data.
+5. Do not generate Laravel Schema Builder syntax.
+6. Do not invent fluent methods that are not documented by Migraw.
+7. Prefer creating a new migration instead of modifying an executed migration.
+8. Make `up()` and `down()` reversible whenever possible.
+
+Default migration style:
+
+```php
+return $this->raw(<<<'SQL'
+ALTER TABLE users
+    ADD COLUMN phone VARCHAR(50) NULL;
+SQL);
+```
+
+Fluent syntax should be used when explicitly requested:
+
+```php
+return $this->create('users')
+    ->id()
+    ->column('name VARCHAR(50) NOT NULL')
+    ->column('email VARCHAR(255) NOT NULL UNIQUE')
+    ->column('password VARCHAR(255)')
+    ->timestamps();
+```
+
+```php
+return $this->alter('users')
+    ->add('phone VARCHAR(50) NULL');
+```
+
+## Documentation
+
+Start here:
+
+* Documentation: [https://erilshackle.github.io/php-migraw/](https://erilshackle.github.io/php-migraw/)
+* Getting Started: [https://erilshackle.github.io/php-migraw/getting-started/](https://erilshackle.github.io/php-migraw/getting-started/)
+* Configuration: [https://erilshackle.github.io/php-migraw/configuration/](https://erilshackle.github.io/php-migraw/configuration/)
+
+### Migrations
+
+* Overview: [https://erilshackle.github.io/php-migraw/migrations/](https://erilshackle.github.io/php-migraw/migrations/)
+* Raw SQL: [https://erilshackle.github.io/php-migraw/migrations/raw/](https://erilshackle.github.io/php-migraw/migrations/raw/)
+* Fluent API: [https://erilshackle.github.io/php-migraw/migrations/fluent/](https://erilshackle.github.io/php-migraw/migrations/fluent/)
+* Population Migrations: [https://erilshackle.github.io/php-migraw/migrations/population/](https://erilshackle.github.io/php-migraw/migrations/population/)
+
+### CLI
+
+* Commands: [https://erilshackle.github.io/php-migraw/commands/](https://erilshackle.github.io/php-migraw/commands/)
+* Squash & Unsquash: [https://erilshackle.github.io/php-migraw/commands/squash/](https://erilshackle.github.io/php-migraw/commands/squash/)
+
+### Reference
+
+* Database Support: [https://erilshackle.github.io/php-migraw/database-support/](https://erilshackle.github.io/php-migraw/database-support/)
+* Common Workflows: [https://erilshackle.github.io/php-migraw/guides/common-workflows/](https://erilshackle.github.io/php-migraw/guides/common-workflows/)
+
+## Full LLM Reference
+
+For a self-contained reference containing migration syntax, examples, API guidance and CLI behavior:
+
+[https://raw.githubusercontent.com/erilshackle/php-migraw/main/llms-full.txt](https://raw.githubusercontent.com/erilshackle/php-migraw/main/llms-full.txt)
