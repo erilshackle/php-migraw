@@ -6,10 +6,11 @@ use Eril\Migraw\Config\PathResolver;
 use Eril\Migraw\Config\RuntimeContext;
 use Eril\Migraw\Migration;
 use Eril\Migraw\Migration\MigrationCreator;
+use Eril\Migraw\Schema\Baseline;
 use Eril\Migraw\Schema\SchemaDumper;
-use Eril\Migraw\Sql\SqlStatement;
 use Eril\Migraw\Squash\MigrationSquasher;
 use Eril\Migraw\Squash\MigrationUnsquasher;
+use Eril\Migraw\Sql\SqlStatement;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -52,6 +53,7 @@ final class CommandHandler
             'repair' => $this->repair(),
 
             'make' => $this->make(),
+            'baseline' => $this->baseline(),
             'squash' => $this->squash(),
             'unsquash' => $this->unsquash(),
 
@@ -247,6 +249,57 @@ final class CommandHandler
         );
     }
 
+    protected function baseline(): void
+    {
+        if ($this->dryRun()) {
+            throw new RuntimeException(
+                'Baseline does not support --dry-run or --pretend.'
+            );
+        }
+
+        $name = $this->options->migrationName() ?? 'baseline';
+
+        if (! $this->force()) {
+            echo Console::bold("Migraw Baseline\n\n");
+
+            echo "This will create a migration from the current database schema\n";
+            echo "and mark it as already executed.\n\n";
+
+            echo "The existing application schema and data will not be modified.\n";
+            echo "Migraw migration history will be initialized.\n";
+
+            if (! $this->confirm('Continue?')) {
+                echo "Cancelled.\n";
+                return;
+            }
+
+            echo "\n";
+        }
+
+        $baseline = new Baseline(
+            $this->context->path,
+            new SchemaDumper(
+                $this->context->pdo,
+                $this->context->table
+            ),
+            $this->context->repository
+        );
+
+        $result = $baseline->create($name);
+
+        echo Console::green(
+            "Created baseline: {$this->paths->relative($result['file'])}\n"
+        );
+
+        echo Console::green(
+            "Adopted baseline: {$result['migration']}\n"
+        );
+
+        echo Console::gray(
+            'Captured tables: ' . count($result['tables']) . "\n"
+        );
+    }
+
     protected function squash(): void
     {
         if ($this->dryRun()) {
@@ -342,8 +395,8 @@ final class CommandHandler
 
         $files = glob(
             rtrim($path, DIRECTORY_SEPARATOR)
-            . DIRECTORY_SEPARATOR
-            . '*.php'
+                . DIRECTORY_SEPARATOR
+                . '*.php'
         ) ?: [];
 
         sort($files);
@@ -615,6 +668,7 @@ Migraw
 Usage:
   migraw init[:mysql|:pgsql|:sqlite] [--force]
   migraw make <name> [--sql|--populate]
+  migraw baseline [name] [--force]
   migraw migrate|up [--dry-run|--pretend]
   migraw rollback|down [--dry-run|--pretend]
   migraw reset [--dry-run|--pretend]

@@ -8,6 +8,7 @@ use Eril\Migraw\Migration;
 use Eril\Migraw\Migration\MigrationRepository;
 use Eril\Migraw\PopulatorMigration;
 use Eril\Migraw\Schema\SchemaDumper;
+use Eril\Migraw\Schema\SchemaMigrationBuilder;
 use RuntimeException;
 use Throwable;
 
@@ -86,7 +87,12 @@ final class MigrationSquasher
             $baselineTime
         );
 
-        if (file_put_contents($file, $this->buildMigration($schema)) === false) {
+        $source = (new SchemaMigrationBuilder($this->dumper))->build(
+            $schema,
+            'Squashed schema baseline generated from the current database state.'
+        );
+
+        if (file_put_contents($file, $source) === false) {
             throw new RuntimeException("Unable to create squash migration: {$file}");
         }
 
@@ -421,83 +427,6 @@ final class MigrationSquasher
             */
             'populators' => $populators,
         ];
-    }
-
-
-
-    /**
-     * @param array<string,array<string>> $schema
-     */
-    protected function buildMigration(array $schema): string
-    {
-        $up = $this->dumper->beforeCreate();
-
-        foreach ($schema as $statements) {
-            foreach ($statements as $statement) {
-                $up[] = $statement;
-            }
-        }
-
-        array_push($up, ...$this->dumper->afterCreate());
-
-        $down = $this->dumper->beforeDrop();
-
-        foreach (array_reverse(array_keys($schema)) as $table) {
-            $down[] = $this->dumper->dropTable($table);
-        }
-
-        array_push($down, ...$this->dumper->afterDrop());
-
-        $upStatements = $this->renderStatements($up);
-        $downStatements = $this->renderStatements($down);
-
-        return <<<PHP
-<?php
-
-use Eril\\Migraw\\Migration;
-use Eril\\Migraw\\Sql\\SqlStatement;
-
-/**
- * Squashed schema baseline generated from the current database state.
- */
-return new class extends Migration
-{
-    public function up(): string|array|SqlStatement
-    {
-        return [
-{$upStatements}
-        ];
-    }
-
-    public function down(): string|array|SqlStatement
-    {
-        return [
-{$downStatements}
-        ];
-    }
-};
-
-PHP;
-    }
-
-    /**
-     * @param string[] $statements
-     */
-    protected function renderStatements(array $statements): string
-    {
-        $blocks = [];
-
-        foreach ($statements as $statement) {
-            $statement = trim($statement);
-
-            $blocks[] = <<<PHP
-            \$this->raw(<<<'SQL'
-{$statement}
-SQL)
-PHP;
-        }
-
-        return implode(",\n\n", $blocks) . ',';
     }
 
     protected function pathFor(string $migration): string

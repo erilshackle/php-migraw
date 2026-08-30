@@ -2,6 +2,32 @@
 
 *Changelog created using the [Simple Changelog](https://marketplace.visualstudio.com/items?itemName=tobiaswaelde.vscode-simple-changelog) extension for VS Code.*
 
+
+## [1.6.0] - 2026-08-30
+
+### Added
+
+* Added `baseline` command for adopting existing projects into Migraw.
+* Added support for generating a migration baseline from the current database schema.
+* Added automatic baseline registration in the migration repository without executing the generated schema SQL.
+* Added optional custom baseline names through `migraw baseline [name]`.
+* Added schema migration generation shared between baseline creation and migration squashing.
+* Added safety checks preventing baseline creation when migration history or migration files already exist.
+
+### Changed
+
+* Schema migration generation is now reusable outside of squash operations.
+* Schema dumping infrastructure is now used by both squash and baseline workflows.
+
+### Notes
+
+* `migraw baseline` is intended for existing databases that are not yet managed by Migraw.
+* The generated baseline represents the current database schema and is marked as already executed.
+* Existing application schema and data are not modified during baseline creation.
+* Fresh installations can execute the generated baseline normally through `migraw migrate`.
+* Baseline creation is rejected for empty application schemas or existing Migraw migration histories.
+
+
 ## [1.5.0] - 2026-08-29
 
 ### Added

@@ -499,6 +499,51 @@ Preview SQL without executing it:
 php vendor/bin/migraw migrate --dry-run
 ```
 
+## Existing projects and baselines
+
+Migraw can be introduced into an existing project that already has a database schema but no Migraw migration history.
+
+Use:
+
+```bash
+php vendor/bin/migraw baseline
+```
+
+or provide a custom name:
+
+```bash
+php vendor/bin/migraw baseline legacy_schema
+```
+
+The baseline command:
+
+1. Reads the current application schema.
+2. Generates a normal Migraw migration capable of recreating that schema.
+3. Registers the generated migration as already executed.
+4. Does not execute the generated migration against the existing database.
+5. Does not modify existing application schema or data.
+
+After the baseline is created, future migrations can be created and executed normally.
+
+For example:
+
+```bash
+php vendor/bin/migraw baseline
+php vendor/bin/migraw make add_timezone_to_users
+php vendor/bin/migraw migrate
+```
+
+On a fresh database, `migraw migrate` will execute the baseline normally and recreate the captured schema.
+
+Baseline creation is intentionally strict. It is rejected when:
+
+* Migraw migration history already exists.
+* Migration files already exist in the configured migration directory.
+* No application schema exists to capture.
+
+Use `squash` instead of `baseline` when the project already has an established Migraw migration history.
+
+
 ## Schema Squashing
 
 Long migration histories can be consolidated into a new schema baseline:
@@ -567,6 +612,7 @@ doctor
 repair
 repair --modified
 
+baseline [name] 
 squash [name]
 ```
 
@@ -601,6 +647,7 @@ When generating code for Migraw:
 12. Do not assume fluent methods exist unless they are part of Migraw's actual `SqlStatement` API.
 13. Do not modify historical executed migrations when a new migration can represent the change.
 14. Preserve the style of existing Migraw code when modifying an existing migration.
+
 
 ### Default Generation Style
 
@@ -699,6 +746,10 @@ When modifying an existing migration, preserve its existing style unless the use
 If the existing migration uses fluent `SqlStatement`, continue using fluent syntax.
 
 If the existing migration uses `$this->raw()`, continue using raw SQL.
+
+baseline is for adopting an existing schema into Migraw. squash is for consolidating an existing Migraw migration history.
+
+
 
 ### Style Selection Priority
 
