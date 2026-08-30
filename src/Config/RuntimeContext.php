@@ -1,9 +1,9 @@
 <?php
 
-namespace Eril\Migraw\Core;
+namespace Eril\Migraw\Config;
 
-use Eril\Migraw\MigrationRepository;
-use Eril\Migraw\Migrator;
+use Eril\Migraw\Migration\MigrationRepository;
+use Eril\Migraw\Migration\Migrator;
 use PDO;
 
 final class RuntimeContext

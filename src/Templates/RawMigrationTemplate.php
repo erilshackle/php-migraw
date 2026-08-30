@@ -52,7 +52,7 @@ class RawMigrationTemplate
     }
 
     /**
-     * @return array<string, callable(array): array{0:string,1:string}>
+     * @return array<string, callable(array): array{0:string,1:string}> 
      */
     protected function templates(): array
     {

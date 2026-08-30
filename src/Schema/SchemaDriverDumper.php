@@ -1,6 +1,6 @@
 <?php
 
-namespace Eril\Migraw\Squash\Dumper;
+namespace Eril\Migraw\Schema;
 
 interface SchemaDriverDumper
 {

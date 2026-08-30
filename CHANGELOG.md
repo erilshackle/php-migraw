@@ -6,6 +6,9 @@
 
 ### Added
 
+* Added PostgreSQL schema squash support.
+* Added SQLite schema squash support.
+* Added driver-specific schema dumpers for MySQL, PostgreSQL and SQLite.
 * Added automatic squash adoption during normal `migrate` operations.
 * Added automatic catch-up for databases that are behind a committed squash checkpoint.
 * Added support for executing missing pre-squash migrations directly from committed squash archives.
@@ -34,20 +37,6 @@
 * Fixed pretend mode incorrectly treating an adopted squash baseline as a pending migration.
 * Fixed preserved population migrations potentially being executed again during pretend reconciliation.
 * Fixed squash adoption across multiple checkpoints with repeatedly retimestamped population migrations.
-
-
-## [1.4.1] - 2026-08-26
-
-### Added
-
-* Added PostgreSQL schema squash support.
-* Added SQLite schema squash support.
-* Added driver-specific schema dumpers for MySQL, PostgreSQL and SQLite.
-
-### Changed
-
-* Refactored schema dumping into driver-specific implementations.
-* Made squash baseline generation database-driver aware.
 
 
 ## [1.4.0] - 2026-08-26

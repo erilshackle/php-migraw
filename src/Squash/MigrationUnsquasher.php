@@ -2,7 +2,7 @@
 
 namespace Eril\Migraw\Squash;
 
-use Eril\Migraw\MigrationRepository;
+use Eril\Migraw\Migration\MigrationRepository;
 use RuntimeException;
 use Throwable;
 

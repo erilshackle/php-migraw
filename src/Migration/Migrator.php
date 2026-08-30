@@ -1,7 +1,9 @@
 <?php
 
-namespace Eril\Migraw;
+namespace Eril\Migraw\Migration;
 
+use Eril\Migraw\Migration;
+use Eril\Migraw\Schema\SchemaCleaner;
 use Eril\Migraw\Sql\SqlStatement;
 use Eril\Migraw\Squash\MigrationSquashAdopter;
 use PDO;
@@ -432,7 +434,7 @@ class Migrator
             );
         }
 
-        $dropped = (new DatabaseCleaner($this->pdo))
+        $dropped = (new SchemaCleaner($this->pdo))
             ->dropAllTables();
 
         $this->repository = new MigrationRepository($this->pdo);

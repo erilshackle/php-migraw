@@ -1,11 +1,11 @@
 <?php
 
-namespace Eril\Migraw;
+namespace Eril\Migraw\Schema;
 
 use PDO;
 use RuntimeException;
 
-final class DatabaseCleaner
+final class SchemaCleaner
 {
     private string $driver;
 

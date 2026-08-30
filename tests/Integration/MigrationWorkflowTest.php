@@ -2,8 +2,8 @@
 
 namespace Tests\Integration;
 
-use Eril\Migraw\MigrationRepository;
-use Eril\Migraw\Migrator;
+use Eril\Migraw\Migration\MigrationRepository;
+use Eril\Migraw\Migration\Migrator;
 use PDO;
 use PHPUnit\Framework\TestCase;
 

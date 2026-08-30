@@ -3,7 +3,7 @@
 namespace Eril\Migraw\Squash;
 
 use Eril\Migraw\Migration;
-use Eril\Migraw\MigrationRepository;
+use Eril\Migraw\Migration\MigrationRepository;
 use PDO;
 use RuntimeException;
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace Eril\Migraw\Core;
+namespace Eril\Migraw\Console;
 
 /**
  * Minimal ANSI color helper for CLI output.

@@ -1,7 +1,10 @@
 <?php
 
-namespace Eril\Migraw\Squash\Dumper;
+namespace Eril\Migraw\Schema;
 
+use Eril\Migraw\Schema\Drivers\MySqlSchemaDumper;
+use Eril\Migraw\Schema\Drivers\PostgresSchemaDumper;
+use Eril\Migraw\Schema\Drivers\SqliteSchemaDumper;
 use PDO;
 use RuntimeException;
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace Eril\Migraw;
+namespace Eril\Migraw\Migration;
 
 use Eril\Migraw\Templates\FluentMigrationTemplate;
 use Eril\Migraw\Templates\RawMigrationTemplate;

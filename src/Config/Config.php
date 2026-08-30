@@ -1,7 +1,8 @@
 <?php
 
-namespace Eril\Migraw\Core;
+namespace Eril\Migraw\Config;
 
+use Eril\Migraw\Console\Console;
 use RuntimeException;
 
 final class Config

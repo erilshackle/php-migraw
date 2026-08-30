@@ -1,7 +1,11 @@
 <?php
 
-namespace Eril\Migraw\Core;
+namespace Eril\Migraw\Console;
 
+use Eril\Migraw\Config\Config;
+use Eril\Migraw\Config\ConnectionResolver;
+use Eril\Migraw\Config\PathResolver;
+use Eril\Migraw\Config\RuntimeContext;
 use Throwable;
 
 final class Migraw

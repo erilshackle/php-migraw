@@ -1,7 +1,8 @@
 <?php
 
-namespace Eril\Migraw\Squash\Dumper;
+namespace Eril\Migraw\Schema\Drivers;
 
+use Eril\Migraw\Schema\SchemaDriverDumper;
 use PDO;
 
 final class MySqlSchemaDumper implements SchemaDriverDumper

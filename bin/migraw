@@ -31,7 +31,7 @@
  * --------------------------------------------------------------------------
  */
 
-use Eril\Migraw\Core\Migraw;
+use Eril\Migraw\Console\Migraw;
 
 $autoloadFiles = [
     __DIR__ . '/../vendor/autoload.php',

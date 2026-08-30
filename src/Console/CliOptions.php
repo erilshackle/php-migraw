@@ -1,6 +1,6 @@
 <?php
 
-namespace Eril\Migraw\Core;
+namespace Eril\Migraw\Console;
 
 final class CliOptions
 {

@@ -1,6 +1,6 @@
 <?php
 
-namespace Eril\Migraw\Core;
+namespace Eril\Migraw\Config;
 
 final class PathResolver
 {

@@ -3,9 +3,9 @@
 namespace Tests\Integration;
 
 use Eril\Migraw\Migration;
-use Eril\Migraw\MigrationRepository;
-use Eril\Migraw\Migrator;
-use Eril\Migraw\Squash\Dumper\SchemaDumper;
+use Eril\Migraw\Migration\MigrationRepository;
+use Eril\Migraw\Migration\Migrator;
+use Eril\Migraw\Schema\SchemaDumper;
 use Eril\Migraw\Squash\MigrationSquasher;
 use Eril\Migraw\Squash\MigrationUnsquasher;
 use PDO;

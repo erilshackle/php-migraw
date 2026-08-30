@@ -2,7 +2,7 @@
 
 namespace Tests\Squash;
 
-use Eril\Migraw\Squash\Dumper\SchemaDumper;
+use Eril\Migraw\Schema\SchemaDumper;
 use PDO;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\SchemaAssertions;

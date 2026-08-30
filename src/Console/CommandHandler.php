@@ -1,13 +1,15 @@
 <?php
 
-namespace Eril\Migraw\Core;
+namespace Eril\Migraw\Console;
 
+use Eril\Migraw\Config\PathResolver;
+use Eril\Migraw\Config\RuntimeContext;
 use Eril\Migraw\Migration;
-use Eril\Migraw\MigrationCreator;
+use Eril\Migraw\Migration\MigrationCreator;
+use Eril\Migraw\Schema\SchemaDumper;
+use Eril\Migraw\Sql\SqlStatement;
 use Eril\Migraw\Squash\MigrationSquasher;
 use Eril\Migraw\Squash\MigrationUnsquasher;
-use Eril\Migraw\Sql\SqlStatement;
-use Eril\Migraw\Squash\Dumper\SchemaDumper;
 use PDO;
 use RuntimeException;
 use Throwable;

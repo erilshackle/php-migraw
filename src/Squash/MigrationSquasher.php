@@ -5,10 +5,9 @@ namespace Eril\Migraw\Squash;
 use DateInterval;
 use DateTimeImmutable;
 use Eril\Migraw\Migration;
-use Eril\Migraw\MigrationRepository;
+use Eril\Migraw\Migration\MigrationRepository;
 use Eril\Migraw\PopulatorMigration;
-use Eril\Migraw\Squash\Dumper\SchemaDriverDumper;
-use Eril\Migraw\Squash\Dumper\SchemaDumper;
+use Eril\Migraw\Schema\SchemaDumper;
 use RuntimeException;
 use Throwable;
 
