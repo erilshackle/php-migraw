@@ -26,7 +26,7 @@ nav:
       - Population: migrations/population.md
   - Commands:
       - Overview: commands/index.md
-      - Baseline: commands/Baseline.md
+      - Baseline: commands/baseline.md
       - Squash & Unsquash: commands/squash.md
   - Guides:
       - Common Workflows: guides/common-workflows.md
