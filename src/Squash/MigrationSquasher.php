@@ -280,11 +280,23 @@ final class MigrationSquasher
      */
     protected function loadMigration(string $file): Migration
     {
-        $migration = require $file;
+        try {
+            $migration = require $file;
+        } catch (Throwable $e) {
+            throw new RuntimeException(
+                "Unable to inspect migration file during squash.\n"
+                    . '  File: ' . basename($file) . "\n"
+                    . '  Cause: ' . $e::class . ': ' . $e->getMessage(),
+                previous: $e
+            );
+        }
 
         if (! $migration instanceof Migration) {
             throw new RuntimeException(
-                "Migration file must return an instance of Migration: {$file}"
+                "Unable to inspect migration file during squash.\n"
+                    . '  File: ' . basename($file) . "\n"
+                    . '  Cause: migration file must return an instance '
+                    . 'of ' . Migration::class . '.'
             );
         }
 

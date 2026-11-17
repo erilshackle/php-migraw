@@ -103,11 +103,7 @@ class Migrator
 
         foreach ($pending as $migrationName) {
             $file = $files[$migrationName];
-            $migration = $this->loadMigration($file);
-
-            $this->runSql(
-                $migration->up()
-            );
+            $this->executeMigration($file, 'up');
 
             if (! $this->pretending) {
                 $this->repository->log(
@@ -144,9 +140,10 @@ class Migrator
                 throw new RuntimeException("Migration file not found: {$migrationName}");
             }
 
-            $migration = $this->loadMigration($files[$migrationName]);
-
-            $this->runSql($migration->down());
+            $this->executeMigration(
+                $files[$migrationName],
+                'down'
+            );
 
             if (! $this->pretending) {
                 $this->repository->delete($migrationName);
@@ -392,9 +389,10 @@ class Migrator
                 );
             }
 
-            $migration = $this->loadMigration($files[$migrationName]);
-
-            $this->runSql($migration->down());
+            $this->executeMigration(
+                $files[$migrationName],
+                'down'
+            );
 
             if (! $this->pretending) {
                 $this->repository->delete($migrationName);
@@ -486,6 +484,47 @@ class Migrator
         }
 
         return $migration;
+    }
+
+    /**
+     * Load and execute one migration while preserving its file-level context
+     * if loading, SQL generation, or database execution fails.
+     */
+    protected function executeMigration(
+        string $file,
+        string $direction
+    ): void {
+        try {
+            $migration = $this->loadMigration($file);
+            $statements = $direction === 'down'
+                ? $migration->down()
+                : $migration->up();
+
+            $this->runSql($statements);
+        } catch (Throwable $e) {
+            throw $this->migrationFailure(
+                $file,
+                $direction,
+                $e
+            );
+        }
+    }
+
+    protected function migrationFailure(
+        string $file,
+        string $direction,
+        Throwable $cause
+    ): RuntimeException {
+        $code = (string) $cause->getCode();
+        $code = $code === '' ? '' : " [{$code}]";
+
+        return new RuntimeException(
+            "Migration failed during {$direction}().\n"
+                . '  File: ' . basename($file) . "\n"
+                . '  Cause: ' . $cause::class . $code . ': '
+                . $cause->getMessage(),
+            previous: $cause
+        );
     }
 
     /**

@@ -262,6 +262,62 @@ final class SquashTest extends TestCase
         );
     }
 
+    public function test_checksum_conflict_reports_archive_file_and_both_checksums(): void
+    {
+        $production = $this->sqlite();
+        $productionRepository = new MigrationRepository($production);
+
+        (new Migrator(
+            $production,
+            $this->path,
+            $productionRepository
+        ))->migrate();
+
+        (new Migrator(
+            $this->pdo,
+            $this->path,
+            $this->repository
+        ))->migrate();
+
+        $result = (new MigrationSquasher(
+            $this->path,
+            new SchemaDumper($this->pdo, 'migrations'),
+            $this->repository
+        ))->squash('app_schema');
+
+        $migration = '2026_01_01_000001_create_roles';
+        $databaseChecksum = str_repeat('0', 64);
+        $productionRepository->updateChecksum($migration, $databaseChecksum);
+
+        try {
+            (new Migrator(
+                $production,
+                $this->path,
+                $productionRepository
+            ))->migrate();
+
+            self::fail('Expected squash adoption to reject the checksum mismatch.');
+        } catch (\RuntimeException $e) {
+            self::assertStringContainsString(
+                "checksum mismatch for migration [{$migration}]",
+                $e->getMessage()
+            );
+            self::assertStringContainsString(
+                "File: {$migration}.php",
+                $e->getMessage()
+            );
+            self::assertStringContainsString(
+                "Database checksum: {$databaseChecksum}",
+                $e->getMessage()
+            );
+            self::assertStringContainsString(
+                'Squash manifest checksum:',
+                $e->getMessage()
+            );
+            self::assertStringNotContainsString('Resolution:', $e->getMessage());
+        }
+    }
+
     public function test_behind_database_catches_up_before_adopting_baseline(): void
     {
         /*

@@ -101,6 +101,55 @@ final class PopulationTest extends TestCase
         );
     }
 
+    public function test_failed_migration_reports_operation_file_and_cause(): void
+    {
+        $name = '2026_01_01_000003_fail_migration';
+        $this->write(
+            $name,
+            <<<'PHP'
+<?php
+
+use Eril\Migraw\Migration;
+use Eril\Migraw\Sql\SqlStatement;
+
+return new class extends Migration
+{
+    public function up(): string|array|SqlStatement
+    {
+        return $this->raw('INSERT INTO missing_table (id) VALUES (1);');
+    }
+
+    public function down(): string|array|SqlStatement
+    {
+        return '';
+    }
+};
+PHP
+        );
+
+        try {
+            (new Migrator(
+                $this->pdo,
+                $this->path,
+                new MigrationRepository($this->pdo)
+            ))->migrate();
+
+            self::fail('Expected migration execution to fail.');
+        } catch (\RuntimeException $e) {
+            self::assertStringContainsString(
+                'Migration failed during up().',
+                $e->getMessage()
+            );
+            self::assertStringContainsString(
+                "File: {$name}.php",
+                $e->getMessage()
+            );
+            self::assertStringContainsString('Cause: PDOException', $e->getMessage());
+            self::assertStringContainsString('missing_table', $e->getMessage());
+            self::assertInstanceOf(\PDOException::class, $e->getPrevious());
+        }
+    }
+
     protected function writeMigrations(): void
     {
         $this->write(

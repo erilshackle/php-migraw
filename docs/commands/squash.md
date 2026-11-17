@@ -229,6 +229,20 @@ Migraw does not silently force a database into a squash checkpoint when its hist
 
 Resolve the migration history conflict before running `migrate` again.
 
+For checksum errors, the diagnostic identifies the migration file and shows
+the checksum recorded by the database and the checksum expected by the squash
+manifest. Restore the matching migration file and archive from the same
+release, then retry. If migration contents were intentionally changed, first
+verify that the database reflects those changes and create a consistent new
+checkpoint; do not manually replace a checksum just to bypass adoption.
+
+If a migration itself fails while being loaded or executed, Migraw reports its
+file basename, operation (`up()`/`down()` or squash catch-up), and the
+underlying exception message. The migration name is already part of the
+filename. For SQL errors, the cause includes the database error details, so
+the failing migration can be located without printing potentially sensitive
+SQL values.
+
 ## Population migrations
 
 Population migrations are not merged into the schema baseline.

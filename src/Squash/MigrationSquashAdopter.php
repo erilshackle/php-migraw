@@ -68,7 +68,13 @@ final class MigrationSquashAdopter
                 continue;
             }
 
-            $this->validateHistoryPrefix($current, $expected);
+            $this->validateHistoryPrefix(
+                $current,
+                $expected,
+                item: $item,
+                manifests: $manifests,
+                manifestIndex: $i
+            );
 
             $missing = array_slice($expected, count($current));
 
@@ -93,9 +99,21 @@ final class MigrationSquashAdopter
                         $migrationName
                     );
 
-                    $migration = $this->loadMigration($file);
+                    try {
+                        $migration = $this->loadMigration($file);
+                        $execute($migration->up());
+                    } catch (\Throwable $e) {
+                        $code = (string) $e->getCode();
+                        $code = $code === '' ? '' : " [{$code}]";
 
-                    $execute($migration->up());
+                        throw new RuntimeException(
+                            "Migration failed during squash catch-up up().\n"
+                                . '  File: ' . basename($file) . "\n"
+                                . '  Cause: ' . $e::class . $code . ': '
+                                . $e->getMessage(),
+                            previous: $e
+                        );
+                    }
 
                     if (! $pretend) {
                         $this->repository->log(
@@ -119,7 +137,14 @@ final class MigrationSquashAdopter
             /*
              * The complete pre-squash history must now match.
              */
-            $this->validateHistoryPrefix($current, $expected, exact: true);
+            $this->validateHistoryPrefix(
+                $current,
+                $expected,
+                exact: true,
+                item: $item,
+                manifests: $manifests,
+                manifestIndex: $i
+            );
 
             $baseline = $manifest['baseline'];
             $preserved = [];
@@ -159,8 +184,11 @@ final class MigrationSquashAdopter
                     && $checksum !== $expectedChecksum
                 ) {
                     throw new RuntimeException(
-                        "Cannot adopt squash baseline: population migration "
-                            . "[{$oldName}] has changed."
+                        "Cannot adopt squash baseline: checksum mismatch "
+                            . "for population migration [{$oldName}].\n"
+                            . '  File: ' . basename($file) . "\n"
+                            . "  Current checksum: {$checksum}\n"
+                            . "  Squash manifest checksum: {$expectedChecksum}"
                     );
                 }
 
@@ -274,7 +302,10 @@ final class MigrationSquashAdopter
     protected function validateHistoryPrefix(
         array $current,
         array $expected,
-        bool $exact = false
+        bool $exact = false,
+        ?array $item = null,
+        array $manifests = [],
+        int $manifestIndex = 0
     ): void {
         if (count($current) > count($expected)) {
             $this->diverged($current, $expected);
@@ -296,15 +327,32 @@ final class MigrationSquashAdopter
             if ($expectedChecksum !== null) {
                 if ($currentChecksum === null) {
                     throw new RuntimeException(
-                        "Cannot adopt squash baseline: checksum missing for "
-                            . "[{$row['migration']}]."
+                        "Cannot adopt squash baseline: checksum is missing "
+                            . "from the database history for migration "
+                            . "[{$row['migration']}].\n"
+                            . $this->checksumContext(
+                                $row['migration'],
+                                null,
+                                $expectedChecksum,
+                                $item,
+                                $manifests,
+                                $manifestIndex
+                            )
                     );
                 }
 
                 if ($currentChecksum !== $expectedChecksum) {
                     throw new RuntimeException(
-                        "Cannot adopt squash baseline: migration "
-                            . "[{$row['migration']}] has a different checksum."
+                        "Cannot adopt squash baseline: checksum mismatch "
+                        . "for migration [{$row['migration']}].\n"
+                            . $this->checksumContext(
+                                $row['migration'],
+                                $currentChecksum,
+                                $expectedChecksum,
+                                $item,
+                                $manifests,
+                                $manifestIndex
+                            )
                     );
                 }
             }
@@ -313,6 +361,86 @@ final class MigrationSquashAdopter
         if ($exact && count($current) !== count($expected)) {
             $this->diverged($current, $expected);
         }
+    }
+
+    protected function checksumContext(
+        string $migration,
+        ?string $databaseChecksum,
+        string $manifestChecksum,
+        ?array $item,
+        array $manifests,
+        int $manifestIndex
+    ): string {
+        $file = $item === null
+            ? null
+            : $this->manifestFileReference(
+                $migration,
+                $item,
+                $manifests,
+                $manifestIndex
+            );
+
+        $lines = [];
+
+        if ($file !== null) {
+            $lines[] = '  File: ' . basename($file);
+        }
+
+        $lines[] = '  Database checksum: '
+            . ($databaseChecksum ?? '(missing)');
+        $lines[] = "  Squash manifest checksum: {$manifestChecksum}";
+
+        return implode("\n", $lines);
+    }
+
+    protected function manifestFileReference(
+        string $migration,
+        array $item,
+        array $manifests,
+        int $manifestIndex
+    ): ?string {
+        foreach ($item['manifest']['schema'] ?? [] as $entry) {
+            if (($entry['migration'] ?? null) === $migration) {
+                return $item['archive']
+                    . DIRECTORY_SEPARATOR
+                    . ($entry['file'] ?? $migration . '.php');
+            }
+        }
+
+        foreach ($item['manifest']['populators'] ?? [] as $entry) {
+            if (($entry['migration'] ?? null) !== $migration) {
+                continue;
+            }
+
+            $file = $entry['renamed_file'] ?? null;
+            $name = $entry['renamed_to'] ?? null;
+
+            if (! is_string($file) || ! is_string($name)) {
+                return null;
+            }
+
+            for (
+                $i = $manifestIndex + 1, $count = count($manifests);
+                $i < $count;
+                $i++
+            ) {
+                foreach ($manifests[$i]['manifest']['populators'] ?? [] as $next) {
+                    if (($next['migration'] ?? null) !== $name) {
+                        continue;
+                    }
+
+                    $file = $next['renamed_file'] ?? $file;
+                    $name = $next['renamed_to'] ?? $name;
+                    break;
+                }
+            }
+
+            return rtrim($this->path, DIRECTORY_SEPARATOR)
+                . DIRECTORY_SEPARATOR
+                . $file;
+        }
+
+        return null;
     }
 
     protected function diverged(array $current, array $expected): never
@@ -428,10 +556,20 @@ final class MigrationSquashAdopter
 
         $checksum = hash_file('sha256', $file);
 
-        if (! is_string($checksum) || $checksum !== $expected) {
+        if (! is_string($checksum)) {
             throw new RuntimeException(
-                "Cannot adopt squash baseline: archived migration "
-                    . "[{$migration}] has a different checksum."
+                "Cannot calculate checksum for migration [{$migration}].\n"
+                    . '  File: ' . basename($file)
+            );
+        }
+
+        if ($checksum !== $expected) {
+            throw new RuntimeException(
+                "Cannot adopt squash baseline: checksum mismatch for "
+                    . "migration [{$migration}].\n"
+                    . '  File: ' . basename($file) . "\n"
+                    . "  Current checksum: {$checksum}\n"
+                    . "  Squash manifest checksum: {$expected}"
             );
         }
     }
