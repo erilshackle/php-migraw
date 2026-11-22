@@ -268,3 +268,24 @@ Unsquash restores migration history and files. It does not roll back the current
 ```bash
 php vendor/bin/migraw help
 ```
+
+
+## Progressive SQLite CLI workflow
+
+The CLI integration test exercises the commands as one continuous workflow
+against the same temporary SQLite database. It initializes configuration,
+creates and adopts a baseline, generates and runs a population migration,
+checks status and validation, then exercises migration aliases, rollback,
+reset, refresh, fresh, repair, squash, and unsquash. Database state carries
+forward between commands; the test does not create a new database for each
+command.
+
+Run it directly:
+
+```bash
+php vendor/bin/phpunit tests/Integration/CliWorkflowTest.php
+```
+
+The regular `composer test` command also runs this workflow, including in the
+GitHub Actions test job. The test uses an isolated temporary project and
+removes it after completion, so it does not touch an application's database.
