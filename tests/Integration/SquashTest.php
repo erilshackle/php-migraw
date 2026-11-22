@@ -183,6 +183,155 @@ final class SquashTest extends TestCase
         self::assertSame('unsquashed', $manifest['status']);
     }
 
+    public function test_population_migrations_survive_multiple_squashes_and_fresh(): void
+    {
+        $schemaMigration = (new \DateTimeImmutable('+5 minutes'))
+            ->format('Y_m_d_His')
+            . '_create_labels';
+        $populationMigration = (new \DateTimeImmutable('+5 minutes +1 second'))
+            ->format('Y_m_d_His')
+            . '_populate_labels';
+
+        $this->write(
+            $schemaMigration,
+            <<<'PHP'
+<?php
+
+use Eril\Migraw\Migration;
+use Eril\Migraw\Sql\SqlStatement;
+
+return new class extends Migration
+{
+    public function up(): string|array|SqlStatement
+    {
+        return $this->create('labels')
+            ->id()
+            ->column('slug TEXT NOT NULL UNIQUE')
+            ->column('name TEXT NOT NULL');
+    }
+
+    public function down(): string|array|SqlStatement
+    {
+        return $this->drop('labels')->ifExists();
+    }
+};
+PHP
+        );
+
+        $this->write(
+            $populationMigration,
+            <<<'PHP'
+<?php
+
+use Eril\Migraw\PopulatorMigration;
+use Eril\Migraw\Sql\SqlStatement;
+
+return new class extends PopulatorMigration
+{
+    public function population(): string|array|SqlStatement
+    {
+        return $this->populate(
+            'labels',
+            [
+                ['slug' => 'new', 'name' => 'New'],
+                ['slug' => 'featured', 'name' => 'Featured'],
+            ],
+            uniqueBy: 'slug'
+        );
+    }
+};
+PHP
+        );
+
+        $migrator = new Migrator(
+            $this->pdo,
+            $this->path,
+            $this->repository
+        );
+
+        self::assertSame(
+            [
+                '2026_01_01_000001_create_roles',
+                '2026_01_01_000002_create_users',
+                '2026_01_01_000003_populate_roles',
+                $schemaMigration,
+                $populationMigration,
+            ],
+            $migrator->migrate()
+        );
+        self::assertSame(
+            2,
+            (int) $this->pdo->query('SELECT COUNT(*) FROM labels')->fetchColumn()
+        );
+
+        $squasher = new MigrationSquasher(
+            $this->path,
+            new SchemaDumper($this->pdo, 'migrations'),
+            $this->repository
+        );
+
+        $firstSquash = $squasher->squash('first_schema');
+        self::assertCount(2, $firstSquash['populators']);
+
+        $additionalSchemaMigration = (new \DateTimeImmutable('+10 minutes'))
+            ->format('Y_m_d_His')
+            . '_create_audit_log';
+        $this->write(
+            $additionalSchemaMigration,
+            <<<'PHP'
+<?php
+
+use Eril\Migraw\Migration;
+use Eril\Migraw\Sql\SqlStatement;
+
+return new class extends Migration
+{
+    public function up(): string|array|SqlStatement
+    {
+        return $this->create('audit_log')
+            ->id()
+            ->column('event TEXT NOT NULL');
+    }
+
+    public function down(): string|array|SqlStatement
+    {
+        return $this->drop('audit_log')->ifExists();
+    }
+};
+PHP
+        );
+        self::assertSame(
+            [$additionalSchemaMigration],
+            $migrator->migrate()
+        );
+
+        $secondSquash = $squasher->squash('second_schema');
+        self::assertCount(2, $secondSquash['populators']);
+
+        foreach ($secondSquash['populators'] as $populator) {
+            self::assertFileExists(
+                $this->path
+                . DIRECTORY_SEPARATOR
+                . $populator
+                . '.php'
+            );
+        }
+
+        $fresh = $migrator->fresh();
+        self::assertCount(3, $fresh['migrated']);
+        self::assertSame(
+            2,
+            (int) $this->pdo->query('SELECT COUNT(*) FROM labels')->fetchColumn()
+        );
+        self::assertSame(
+            'Featured',
+            $this->pdo->query(
+                "SELECT name FROM labels WHERE slug = 'featured'"
+            )->fetchColumn()
+        );
+        self::assertTrue($this->tableExists($this->pdo, 'audit_log'));
+    }
+
     public function test_existing_up_to_date_database_adopts_baseline(): void
     {
         /*

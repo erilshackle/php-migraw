@@ -75,12 +75,17 @@ final class MigrationSquasher
         }
 
         $baselineTime = new DateTimeImmutable();
-        $migration = $baselineTime->format('Y_m_d_His') . '_' . $name;
-        $file = $this->pathFor($migration);
 
-        if (file_exists($file)) {
-            throw new RuntimeException("Migration already exists: {$file}");
-        }
+        do {
+            $migration = $baselineTime->format('Y_m_d_His') . '_' . $name;
+            $file = $this->pathFor($migration);
+
+            if (file_exists($file)) {
+                $baselineTime = $baselineTime->add(
+                    new DateInterval('PT1S')
+                );
+            }
+        } while (file_exists($file));
 
         $populationRenames = $this->planPopulationRenames(
             $populationFiles,
@@ -455,7 +460,7 @@ final class MigrationSquasher
             . DIRECTORY_SEPARATOR
             . 'archive'
             . DIRECTORY_SEPARATOR
-            . date('Ymd_His');
+            . (new DateTimeImmutable())->format('Ymd_His_u');
     }
 
 

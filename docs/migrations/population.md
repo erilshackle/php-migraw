@@ -17,7 +17,11 @@ Create one with:
 php vendor/bin/migraw make populate_roles --populate
 ```
 
-A population migration extends `PopulatorMigration` and implements `population()`.
+A population migration extends `PopulatorMigration` and implements
+`population()`. This is the single supported way to version application data:
+schema migrations describe structure, while population migrations describe
+deterministic rows. Add a new population migration when those rows need to
+change; do not edit a population migration that has already run.
 
 ```php
 <?php
@@ -162,6 +166,15 @@ public function population(): array
 
 Its default `down()` is empty. Rolling it back removes the migration record so the population can run again later.
 
+## Squash and fresh
+
+Squashing archives schema migrations and keeps population migrations active,
+retimestamping them after the new schema baseline. Repeated squashes preserve
+the population files rather than folding them into the baseline. A `fresh`
+rebuild runs the baseline and then the active population migrations; it
+recreates their declared rows, but does not preserve unrelated operational
+data from the previous database.
+
 ## Driver support
 
 Population statements currently compile for:
@@ -169,3 +182,6 @@ Population statements currently compile for:
 - MySQL / MariaDB
 - PostgreSQL
 - SQLite
+
+See the [squash command guide](../commands/squash.md) for how population
+migrations behave during squash and unsquash.

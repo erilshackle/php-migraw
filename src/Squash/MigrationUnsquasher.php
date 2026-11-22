@@ -41,6 +41,7 @@ final class MigrationUnsquasher
 
         $restoredSchema = [];
         $restoredPopulators = [];
+        $removedGeneratedPopulators = [];
         $baselineRemoved = false;
         $repositoryRestored = false;
 
@@ -83,6 +84,30 @@ final class MigrationUnsquasher
                 }
 
                 $from = $this->path . DIRECTORY_SEPARATOR . $renamed;
+
+                if (! empty($entry['generated'])) {
+                    if (! file_exists($from)) {
+                        throw new RuntimeException(
+                            "Retimestamped populator not found: {$from}"
+                        );
+                    }
+
+                    $contents = file_get_contents($from);
+
+                    if ($contents === false || ! unlink($from)) {
+                        throw new RuntimeException(
+                            "Unable to remove generated populator: {$from}"
+                        );
+                    }
+
+                    $removedGeneratedPopulators[] = [
+                        'file' => $from,
+                        'contents' => $contents,
+                    ];
+
+                    continue;
+                }
+
                 $to = $this->path . DIRECTORY_SEPARATOR . $original;
 
                 if (! file_exists($from)) {
@@ -142,6 +167,10 @@ final class MigrationUnsquasher
                 }
             }
 
+            foreach (array_reverse($removedGeneratedPopulators) as $removed) {
+                @file_put_contents($removed['file'], $removed['contents']);
+            }
+
             foreach (array_reverse($restoredSchema) as $rename) {
                 if (file_exists($rename['to'])) {
                     @rename($rename['to'], $rename['from']);
@@ -159,7 +188,8 @@ final class MigrationUnsquasher
             'archive' => $archive,
             'baseline' => $manifest['baseline']['migration'],
             'restored' => count($restoredSchema),
-            'populators' => count($restoredPopulators),
+            'populators' => count($restoredPopulators)
+                + count($removedGeneratedPopulators),
         ];
     }
 

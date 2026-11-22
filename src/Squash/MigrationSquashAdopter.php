@@ -174,13 +174,12 @@ final class MigrationSquashAdopter
                     );
                 }
 
-                $expectedChecksum = $this->checksumFromHistory(
-                    $expected,
-                    $oldName
-                );
+                $expectedChecksum = ! empty($entry['generated'])
+                    ? ($entry['renamed_checksum'] ?? null)
+                    : $this->checksumFromHistory($expected, $oldName);
 
                 if (
-                    $expectedChecksum !== null
+                    is_string($expectedChecksum)
                     && $checksum !== $expectedChecksum
                 ) {
                     throw new RuntimeException(
