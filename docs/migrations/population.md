@@ -14,8 +14,12 @@ Common examples:
 Create one with:
 
 ```bash
-php vendor/bin/migraw make populate_roles --populate
+php vendor/bin/migraw make populate_roles
 ```
+
+The `populate_` prefix automatically selects the population template.
+Alternatively, pass `--populate` to use that template with another migration
+name.
 
 A population migration extends `PopulatorMigration` and implements
 `population()`. This is the single supported way to version application data:

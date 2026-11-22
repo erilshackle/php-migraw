@@ -59,7 +59,7 @@ php vendor/bin/migraw make create_users_table
 | Option | Description |
 | --- | --- |
 | `--sql` | Force a blank raw SQL migration |
-| `--populate` | Create a `PopulatorMigration` |
+| `--populate` | Create a `PopulatorMigration` (also selected automatically for names starting with `populate_`) |
 
 Examples:
 
@@ -72,7 +72,7 @@ php vendor/bin/migraw make custom_database_change --sql
 ```
 
 ```bash
-php vendor/bin/migraw make populate_roles --populate
+php vendor/bin/migraw make populate_roles
 ```
 
 `--sql` and `--populate` cannot be used together.

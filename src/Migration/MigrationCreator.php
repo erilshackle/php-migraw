@@ -30,7 +30,7 @@ class MigrationCreator
      * Create a migration file.
      *
      * --sql always forces a blank raw migration.
-     * --populate always creates a PopulatorMigration.
+     * The populate_ prefix and --populate create a PopulatorMigration.
      *
      * Otherwise, the configured default template is used.
      */
@@ -50,6 +50,8 @@ class MigrationCreator
         }
 
         $name = $this->normalizeName($name);
+        $isPopulation = $populate
+            || (! $sql && str_starts_with($name, 'populate_'));
 
         $timestamp = date('Y_m_d_His');
 
@@ -66,7 +68,7 @@ class MigrationCreator
         }
 
         $contents = match (true) {
-            $populate => $this->populateStub(),
+            $isPopulation => $this->populateStub(),
 
             // Explicit --sql always means blank/raw.
             $sql => (new RawMigrationTemplate(
